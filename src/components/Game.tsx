@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import PixiGame from './PixiGame.tsx';
 
 import { useElementSize } from 'usehooks-ts';
@@ -34,8 +34,6 @@ export default function Game() {
   const worldState = useQuery(api.world.worldState, worldId ? { worldId } : 'skip');
   const { historicalTime, timeManager } = useHistoricalTime(worldState?.engine);
 
-  const scrollViewRef = useRef<HTMLDivElement>(null);
-
   if (!worldId || !engineId || !game) {
     return null;
   }
@@ -58,18 +56,13 @@ export default function Game() {
         </Stage>
         
         {/* Right-side overlay for Player Details */}
-        <div 
-          className="absolute top-0 right-0 h-full w-80 lg:w-96 overflow-y-auto p-4 flex flex-col pointer-events-auto"
-          ref={scrollViewRef}
-          style={{ scrollbarWidth: 'none' }} // Optional: hide scrollbar for cleaner look
-        >
+        <div className="absolute top-0 right-0 z-10 h-full w-80 lg:w-96 p-4 flex flex-col pointer-events-auto overflow-hidden">
           <PlayerDetails
             worldId={worldId}
             engineId={engineId}
             game={game}
             playerId={selectedElement?.id}
             setSelectedElement={setSelectedElement}
-            scrollViewRef={scrollViewRef}
           />
         </div>
       </div>

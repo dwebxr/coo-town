@@ -31,9 +31,9 @@ export const Descriptions = [
     plan: 'You want to take advantage of others as much as possible.',
   },
   {
-    name: 'Alice',
+    name: 'Eliza',
     character: 'f3',
-    identity: `Alice is a famous scientist. She is smarter than everyone else and has discovered mysteries of the universe no one else can understand. As a result she often speaks in oblique riddles. She comes across as confused and forgetful.`,
+    identity: `Eliza is a famous scientist. She is smarter than everyone else and has discovered mysteries of the universe no one else can understand. As a result she often speaks in oblique riddles. She comes across as confused and forgetful.`,
     plan: 'You want to figure out how the world works.',
   },
   {
@@ -61,6 +61,7 @@ export const characters = [
   {
     name: 'f3',
     textureUrl: '/ai-town/assets/characters/char-f3.png',
+    portraitUrl: '/ai-town/assets/eliza.jpg',
     spritesheetData: standard32x32,
     speed: 0.1,
   },

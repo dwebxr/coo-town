@@ -9,6 +9,7 @@ import { useSendInput } from '../hooks/sendInput';
 import { Player } from '../../convex/aiTown/player';
 import { GameId } from '../../convex/aiTown/ids';
 import { ServerGame } from '../hooks/serverGame';
+import { useCharacters } from '../lib/characterRegistry';
 
 export default function PlayerDetails({
   worldId,
@@ -16,16 +17,15 @@ export default function PlayerDetails({
   game,
   playerId,
   setSelectedElement,
-  scrollViewRef,
 }: {
   worldId: Id<'worlds'>;
   engineId: Id<'engines'>;
   game: ServerGame;
   playerId?: GameId<'players'>;
   setSelectedElement: SelectElement;
-  scrollViewRef: React.RefObject<HTMLDivElement>;
 }) {
   const humanTokenIdentifier = useQuery(api.world.userStatus, { worldId });
+  const { characters } = useCharacters();
 
   const players = [...game.world.players.values()];
   const humanPlayer = players.find((p) => p.human === humanTokenIdentifier);
@@ -47,6 +47,29 @@ export default function PlayerDetails({
   );
 
   const playerDescription = playerId && game.playerDescriptions.get(playerId);
+  const playerCharacterId = playerDescription?.character;
+  const character = playerCharacterId
+    ? characters.find((candidate) => candidate.name === playerCharacterId)
+    : undefined;
+  const avatarUrl = character?.portraitUrl ?? character?.textureUrl ?? null;
+  const avatarNode = avatarUrl ? (
+    <div className="box shrink-0">
+      <div className="bg-brown-200 p-1">
+        <img
+          className="h-20 w-20 sm:h-24 sm:w-24 rounded-sm object-cover object-top"
+          src={avatarUrl}
+          alt={`${playerDescription?.name ?? 'Player'} avatar`}
+          loading="lazy"
+        />
+      </div>
+    </div>
+  ) : (
+    <div className="box shrink-0">
+      <div className="bg-brown-200 h-20 w-20 sm:h-24 sm:w-24 flex items-center justify-center text-lg font-semibold">
+        {(playerDescription?.name ?? '?').charAt(0)}
+      </div>
+    </div>
+  );
 
   const startConversation = useSendInput(engineId, 'startConversation');
   const acceptInvite = useSendInput(engineId, 'acceptInvite');
@@ -132,15 +155,16 @@ export default function PlayerDetails({
 
   const pendingSuffix = (s: string) => '';
   return (
-    <>
-      <div className="flex gap-4">
-        <div className="box w-3/4 sm:w-full mr-auto">
+    <div className="flex h-full flex-col gap-4 min-h-0">
+      <div className="flex gap-4 items-start">
+        {avatarNode}
+        <div className="box flex-1">
           <h2 className="bg-brown-700 p-2 font-display text-2xl sm:text-4xl tracking-wider shadow-solid text-center">
             {playerDescription?.name}
           </h2>
         </div>
         <a
-          className="button text-white shadow-solid text-2xl cursor-pointer pointer-events-auto"
+          className="button text-white shadow-solid text-2xl cursor-pointer pointer-events-auto self-start"
           onClick={() => setSelectedElement(undefined)}
         >
           <h2 className="h-full bg-clay-700">
@@ -233,31 +257,33 @@ export default function PlayerDetails({
           )}
         </p>
       </div>
-      {!isMe && playerConversation && playerStatus?.kind === 'participating' && (
-        <Messages
-          worldId={worldId}
-          engineId={engineId}
-          inConversationWithMe={inConversationWithMe ?? false}
-          conversation={{ kind: 'active', doc: playerConversation }}
-          humanPlayer={humanPlayer}
-          scrollViewRef={scrollViewRef}
-        />
-      )}
-      {!playerConversation && previousConversation && (
-        <>
-          <div className="box flex-grow">
-            <h2 className="bg-brown-700 text-lg text-center">Previous conversation</h2>
-          </div>
+      {!isMe && playerConversation && (
+        <div className="flex-1 min-h-0">
           <Messages
             worldId={worldId}
             engineId={engineId}
-            inConversationWithMe={false}
-            conversation={{ kind: 'archived', doc: previousConversation }}
+            inConversationWithMe={inConversationWithMe ?? false}
+            conversation={{ kind: 'active', doc: playerConversation }}
             humanPlayer={humanPlayer}
-            scrollViewRef={scrollViewRef}
           />
-        </>
+        </div>
       )}
-    </>
+      {!playerConversation && previousConversation && (
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          <div className="box flex-grow">
+            <h2 className="bg-brown-700 text-lg text-center">Previous conversation</h2>
+          </div>
+          <div className="flex-1 min-h-0">
+            <Messages
+              worldId={worldId}
+              engineId={engineId}
+              inConversationWithMe={false}
+              conversation={{ kind: 'archived', doc: previousConversation }}
+              humanPlayer={humanPlayer}
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

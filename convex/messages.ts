@@ -19,10 +19,8 @@ export const listMessages = query({
         .query('playerDescriptions')
         .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('playerId', message.author))
         .first();
-      if (!playerDescription) {
-        throw new Error(`Invalid author ID: ${message.author}`);
-      }
-      out.push({ ...message, authorName: playerDescription.name });
+      const authorName = playerDescription?.name ?? 'Unknown';
+      out.push({ ...message, authorName });
     }
     return out;
   },

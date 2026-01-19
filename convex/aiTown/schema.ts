@@ -8,6 +8,7 @@ import { serializedWorld } from './world';
 import { serializedWorldMap } from './worldMap';
 import { serializedConversation } from './conversation';
 import { conversationId, playerId } from './ids';
+import { serializedCharacterSprite } from './characterSprite';
 
 export const aiTownTables = {
   // This table has a single document that stores all players, conversations, and agents. This
@@ -63,6 +64,12 @@ export const aiTownTables = {
     'worldId',
     'id',
   ]),
+
+  characterSprites: defineTable({
+    ...serializedCharacterSprite,
+  })
+    .index('spriteId', ['spriteId'])
+    .index('ownerId', ['ownerId']),
 
   // The agent layer wants to know what the last (completed) conversation was between two players,
   // so this table represents a labelled graph indicating which players have talked to each other.

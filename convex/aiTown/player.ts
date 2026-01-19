@@ -16,6 +16,9 @@ import { inputHandler } from './inputHandler';
 import { characters } from '../../data/characters';
 import { PlayerDescription } from './playerDescription';
 
+const isValidCharacterId = (character: string) =>
+  characters.some((c) => c.name === character) || character.startsWith('custom_');
+
 const pathfinding = v.object({
   destination: point,
   started: v.number(),
@@ -209,7 +212,7 @@ export class Player {
       { dx: 0, dy: -1 },
     ];
     const facing = facingOptions[Math.floor(Math.random() * facingOptions.length)];
-    if (!characters.find((c) => c.name === character)) {
+    if (!isValidCharacterId(character)) {
       throw new Error(`Invalid character: ${character}`);
     }
     const playerId = game.allocId('players');

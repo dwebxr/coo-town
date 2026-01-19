@@ -4,6 +4,8 @@ import a16zImg from '../assets/a16z.png';
 import convexImg from '../assets/convex.svg';
 import starImg from '../assets/star.svg';
 import helpImg from '../assets/help.svg';
+import interactImg from '../assets/interact.svg';
+import closeImg from '../assets/close.svg';
 import { useState, useEffect } from 'react';
 import ReactModal from 'react-modal';
 import MusicButton from './components/buttons/MusicButton.tsx';
@@ -11,6 +13,7 @@ import Button from './components/buttons/Button.tsx';
 import FreezeButton from './components/FreezeButton.tsx';
 import PoweredByConvex from './components/PoweredByConvex.tsx';
 import MapEditor from './components/MapEditor.tsx';
+import CreateCharacterDialog from './components/CreateCharacterDialog.tsx';
 
 const modalStyles = {
   overlay: {
@@ -35,6 +38,7 @@ const modalStyles = {
 
 export default function Home() {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [createCharacterOpen, setCreateCharacterOpen] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
@@ -82,6 +86,10 @@ export default function Home() {
           </div>
         </ReactModal>
       )}
+      <CreateCharacterDialog
+        isOpen={createCharacterOpen}
+        onClose={() => setCreateCharacterOpen(false)}
+      />
 
       {!gameStarted ? (
         // LANDING PAGE STATE
@@ -120,18 +128,18 @@ export default function Home() {
           </div>
 
           {/* Minimal Overlay Controls for Game Mode */}
-          <div className="absolute top-4 right-4 flex gap-2 pointer-events-auto">
-             <FreezeButton />
-             <MusicButton />
-             <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>
+          <div className="absolute top-4 left-4 z-10 flex flex-wrap items-start gap-3 pointer-events-auto max-w-[calc(100%-2rem)]">
+            <FreezeButton />
+            <MusicButton />
+            <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>
               Help
             </Button>
-             <button 
-               onClick={() => setGameStarted(false)}
-               className="bg-red-500/80 hover:bg-red-600 text-white px-3 py-1 rounded border-2 border-white/20 font-display text-xs"
-             >
-               EXIT
-             </button>
+            <Button imgUrl={interactImg} onClick={() => setCreateCharacterOpen(true)}>
+              Create
+            </Button>
+            <Button imgUrl={closeImg} onClick={() => setGameStarted(false)}>
+              Exit
+            </Button>
           </div>
         </div>
       )}

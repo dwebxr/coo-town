@@ -1,6 +1,6 @@
 import { Character } from './Character.tsx';
 import { orientationDegrees } from '../../convex/util/geometry.ts';
-import { characters } from '../../data/characters.ts';
+import { useCharacters } from '../lib/characterRegistry.ts';
 import { toast } from 'react-toastify';
 import { Player as ServerPlayer } from '../../convex/aiTown/player.ts';
 import { GameId } from '../../convex/aiTown/ids.ts';
@@ -33,6 +33,7 @@ export const Player = ({
   if (!playerCharacter) {
     throw new Error(`Player ${player.id} has no character`);
   }
+  const { characters, isLoading } = useCharacters();
   const character = characters.find((c) => c.name === playerCharacter);
 
   const locationBuffer = game.world.historicalLocations?.get(player.id);
@@ -45,7 +46,9 @@ export const Player = ({
   if (!character) {
     if (!logged.has(playerCharacter)) {
       logged.add(playerCharacter);
-      toast.error(`Unknown character ${playerCharacter}`);
+      if (!isLoading) {
+        toast.error(`Unknown character ${playerCharacter}`);
+      }
     }
     return null;
   }

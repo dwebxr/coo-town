@@ -5,7 +5,8 @@ import { api } from '../../convex/_generated/api';
 import { MessageInput } from './MessageInput';
 import { Player } from '../../convex/aiTown/player';
 import { Conversation } from '../../convex/aiTown/conversation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useCharacters } from '../lib/characterRegistry';
 
 export function Messages({
   worldId,
@@ -13,7 +14,6 @@ export function Messages({
   conversation,
   inConversationWithMe,
   humanPlayer,
-  scrollViewRef,
 }: {
   worldId: Id<'worlds'>;
   engineId: Id<'engines'>;
@@ -22,14 +22,26 @@ export function Messages({
     | { kind: 'archived'; doc: Doc<'archivedConversations'> };
   inConversationWithMe: boolean;
   humanPlayer?: Player;
-  scrollViewRef: React.RefObject<HTMLDivElement>;
 }) {
+  const scrollViewRef = useRef<HTMLDivElement>(null);
   const humanPlayerId = humanPlayer?.id;
   const descriptions = useQuery(api.world.gameDescriptions, { worldId });
+  const { characters } = useCharacters();
   const messages = useQuery(api.messages.listMessages, {
     worldId,
     conversationId: conversation.doc.id,
   });
+  const descriptionByPlayerId = useMemo(() => {
+    return new Map(
+      (descriptions?.playerDescriptions ?? []).map((description) => [
+        description.playerId,
+        description,
+      ]),
+    );
+  }, [descriptions]);
+  const characterByName = useMemo(() => {
+    return new Map(characters.map((character) => [character.name, character]));
+  }, [characters]);
   let currentlyTyping = conversation.kind === 'active' ? conversation.doc.isTyping : undefined;
   if (messages !== undefined && currentlyTyping) {
     if (messages.find((m) => m.messageUuid === currentlyTyping!.messageUuid)) {
@@ -37,8 +49,7 @@ export function Messages({
     }
   }
   const currentlyTypingName =
-    currentlyTyping &&
-    descriptions?.playerDescriptions.find((p) => p.playerId === currentlyTyping?.playerId)?.name;
+    currentlyTyping && (descriptionByPlayerId.get(currentlyTyping.playerId)?.name ?? 'Unknown');
 
   const scrollView = scrollViewRef.current;
   const isScrolledToBottom = useRef(false);
@@ -65,20 +76,39 @@ export function Messages({
   if (messages === undefined) {
     return null;
   }
-  if (messages.length === 0 && !inConversationWithMe) {
-    return null;
-  }
   const messageNodes: { time: number; node: React.ReactNode }[] = messages.map((m) => {
+    const authorDescription = descriptionByPlayerId.get(m.author);
+    const authorName = authorDescription?.name ?? m.authorName ?? 'Unknown';
+    const authorCharacter = authorDescription?.character;
+    const character = authorCharacter ? characterByName.get(authorCharacter) : undefined;
+    const avatarUrl = character?.portraitUrl ?? character?.textureUrl ?? null;
+    const avatarNode = avatarUrl ? (
+      <img
+        className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-sm border-2 border-brown-700 bg-brown-200 object-cover object-top"
+        src={avatarUrl}
+        alt={`${authorName} avatar`}
+        loading="lazy"
+      />
+    ) : (
+      <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-sm border-2 border-brown-700 bg-brown-200 flex items-center justify-center text-xs font-semibold">
+        {authorName.charAt(0)}
+      </div>
+    );
     const node = (
       <div key={`text-${m._id}`} className="leading-tight mb-6">
-        <div className="flex gap-4">
-          <span className="uppercase flex-grow">{m.authorName}</span>
-          <time dateTime={m._creationTime.toString()}>
-            {new Date(m._creationTime).toLocaleString()}
-          </time>
-        </div>
-        <div className={clsx('bubble', m.author === humanPlayerId && 'bubble-mine')}>
-          <p className="bg-white -mx-3 -my-1">{m.text}</p>
+        <div className="flex gap-3 items-start">
+          {avatarNode}
+          <div className="min-w-0 flex-1">
+            <div className="flex gap-4">
+              <span className="uppercase flex-grow">{authorName}</span>
+              <time dateTime={m._creationTime.toString()}>
+                {new Date(m._creationTime).toLocaleString()}
+              </time>
+            </div>
+            <div className={clsx('bubble', m.author === humanPlayerId && 'bubble-mine')}>
+              <p className="bg-white -mx-3 -my-1">{m.text}</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -89,8 +119,7 @@ export function Messages({
   const membershipNodes: typeof messageNodes = [];
   if (conversation.kind === 'active') {
     for (const [playerId, m] of conversation.doc.participants) {
-      const playerName = descriptions?.playerDescriptions.find((p) => p.playerId === playerId)
-        ?.name;
+      const playerName = descriptionByPlayerId.get(playerId)?.name ?? 'Unknown';
       let started;
       if (m.status.kind === 'participating') {
         started = m.status.started;
@@ -108,8 +137,7 @@ export function Messages({
     }
   } else {
     for (const playerId of conversation.doc.participants) {
-      const playerName = descriptions?.playerDescriptions.find((p) => p.playerId === playerId)
-        ?.name;
+      const playerName = descriptionByPlayerId.get(playerId)?.name ?? 'Unknown';
       const started = conversation.doc.created;
       membershipNodes.push({
         node: (
@@ -135,8 +163,11 @@ export function Messages({
   const nodes = [...messageNodes, ...membershipNodes];
   nodes.sort((a, b) => a.time - b.time);
   return (
-    <div className="chats text-base sm:text-sm">
-      <div className="bg-brown-200 text-black p-2">
+    <div className="chats text-base sm:text-sm flex h-full flex-col">
+      <div ref={scrollViewRef} className="bg-brown-200 text-black p-2 flex-1 overflow-y-auto">
+        {nodes.length === 0 && !currentlyTyping && (
+          <div className="leading-tight mb-6 text-center text-brown-700">No messages yet.</div>
+        )}
         {nodes.length > 0 && nodes.map((n) => n.node)}
         {currentlyTyping && currentlyTyping.playerId !== humanPlayerId && (
           <div key="typing" className="leading-tight mb-6">
