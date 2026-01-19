@@ -38,10 +38,39 @@
   }
 }
 
+/* Stardew Valley Theme for Map Editor */
+:root {
+  /* Wood & Panel Colors */
+  --stardew-wood-dark: #6d4c30;
+  --stardew-wood-medium: #8b6b4a;
+  --stardew-wood-light: #a88b6a;
+  --stardew-wood-highlight: #c4a67a;
+
+  /* Background Colors */
+  --stardew-bg-cream: #f5e6c8;
+  --stardew-bg-parchment: #e8d4b0;
+  --stardew-panel-dark: #3b2a21;
+  --stardew-panel-medium: #5a4030;
+
+  /* Accent Colors */
+  --stardew-green: #5fa052;
+  --stardew-green-dark: #4a8040;
+  --stardew-gold: #ffd93d;
+  --stardew-gold-soft: #f6e2b0;
+  --stardew-red: #c84040;
+
+  /* Text Colors */
+  --stardew-text-dark: #4a3728;
+  --stardew-text-light: #f3e2b5;
+
+  /* Grid Colors */
+  --stardew-grid: rgba(139, 107, 74, 0.15);
+  --stardew-grid-hover: rgba(255, 217, 61, 0.4);
+}
+
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb)))
-    rgb(var(--background-start-rgb));
+  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
 }
 
 .game-background {
@@ -155,8 +184,8 @@ body {
     font-size: 16px;
   }
 
-  .button > div,
-  .button > span {
+  .button>div,
+  .button>span {
     vertical-align: top;
     line-height: 1;
   }
