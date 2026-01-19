@@ -644,6 +644,58 @@ const MapEditor = () => {
     });
   };
 
+  const handleAutoGuess = () => {
+    const isLPC = tileset.id.includes('lpc');
+    const isLPCTerrain = tileset.id === 'lpc-terrain';
+    const isLPCBase = tileset.id === 'lpc-base';
+
+    setTilesetCategories((prev) => {
+      const next = { ...prev };
+      const current = { ...(next[tileset.id] ?? {}) };
+      const tileCount = tilesetRows * tilesetCols;
+
+      for (let i = 0; i < tileCount; i++) {
+        // Skip if already categorized
+        // if (current[i]) continue; 
+
+        let category: TileCategory | null = null;
+        const row = Math.floor(i / tilesetCols);
+
+        if (isLPCTerrain) {
+          // LPC Terrain Atlas Layout (Approximate)
+          if (row < 11) {
+            category = 'terrain'; // Grass, Dirt, Water
+          } else if (row >= 11 && row < 15) {
+             category = 'buildings'; // Walls
+          } else if (row >= 15) {
+             category = 'props'; // Trees, holes, decorative
+          }
+        } else if (isLPCBase) {
+           // LPC Base Atlas Layout
+           if (row < 15) {
+             category = 'buildings'; // Walls and roofs
+           } else {
+             category = 'terrain'; // Floors
+           }
+        }
+
+        // Fallback or refinement based on transparency
+        if (!category && transparentTiles[i]) {
+          category = 'props';
+        } else if (!category) {
+          category = 'terrain';
+        }
+
+        if (category) {
+          current[i] = category;
+        }
+      }
+      next[tileset.id] = current;
+      return next;
+    });
+    alert(`Auto-classified tiles for ${tileset.name}`);
+  };
+
   const applyCategoryToSelection = (category: TileCategory | null) => {
     if (paletteSelectionSet.size === 0) return;
     setTilesetCategories((prev) => {
@@ -2297,6 +2349,14 @@ const MapEditor = () => {
               >
                 Auto-tag used
               </button>
+              <button
+                onClick={handleAutoGuess}
+                className="text-[11px] px-2 py-1 border border-indigo-500 rounded text-indigo-200 hover:bg-indigo-500/20"
+                title="Heuristic classification based on LPC layout and transparency"
+              >
+                Auto-Guess
+              </button>
+
               <span className="text-[10px] text-gray-500">Terrain/Props only</span>
             </div>
             <div className="mt-2 flex items-center gap-2">

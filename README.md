@@ -1,4 +1,6 @@
-# AI Town 🏠💻💌
+# Eliza Town 🏠💻💌
+
+> A fork of [AI Town](https://github.com/a16z-infra/ai-town) by a16z-infra
 
 [Live Demo](https://www.convex.dev/ai-town)
 
@@ -6,7 +8,7 @@
 
 <img width="1454" alt="Screen Shot 2023-08-14 at 10 01 00 AM" src="https://github.com/a16z-infra/ai-town/assets/3489963/a4c91f17-23ed-47ec-8c4e-9f9a8505057d">
 
-AI Town is a virtual town where AI characters live, chat and socialize.
+Eliza Town is a virtual town where AI characters live, chat and socialize.
 
 This project is a deployable starter kit for easily building and customizing your own version of AI
 town. Inspired by the research paper
@@ -19,7 +21,17 @@ from a simple project to play around with to a scalable, multi-player game. A se
 make a JS/TS framework available as most simulators in this space (including the original paper
 above) are written in Python.
 
+## Acknowledgements
+
+This project is built upon the work of amazing open-source projects:
+
+- **[AI Town](https://github.com/a16z-infra/ai-town)** by a16z-infra - The original foundation for this project (MIT License)
+- **[Liberated Pixel Cup (LPC)](https://lpc.opengameart.org/)** - Art assets (CC-BY-SA 3.0 / GPL 3.0). See [public/assets/lpc/Attribution.txt](./public/assets/lpc/Attribution.txt) for full credits.
+- **[PixiJS](https://pixijs.com/)** - Rendering engine
+- **[Convex](https://convex.dev/)** - Backend platform
+
 ## Overview
+
 
 - 💻 [Stack](#stack)
 - 🧠 [Installation](#installation) (cloud, local, Docker, self-host, Fly.io, ...)

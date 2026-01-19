@@ -14,6 +14,8 @@ import FreezeButton from './components/FreezeButton.tsx';
 import PoweredByConvex from './components/PoweredByConvex.tsx';
 import MapEditor from './components/MapEditor.tsx';
 import CreateCharacterDialog from './components/CreateCharacterDialog.tsx';
+import CreateAgentDialog from './components/CreateAgentDialog.tsx';
+import WorldJoinControls from './components/WorldJoinControls.tsx';
 
 const modalStyles = {
   overlay: {
@@ -39,6 +41,7 @@ const modalStyles = {
 export default function Home() {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [createCharacterOpen, setCreateCharacterOpen] = useState(false);
+  const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
 
@@ -90,6 +93,7 @@ export default function Home() {
         isOpen={createCharacterOpen}
         onClose={() => setCreateCharacterOpen(false)}
       />
+      <CreateAgentDialog isOpen={createAgentOpen} onClose={() => setCreateAgentOpen(false)} />
 
       {!gameStarted ? (
         // LANDING PAGE STATE
@@ -129,6 +133,7 @@ export default function Home() {
 
           {/* Minimal Overlay Controls for Game Mode */}
           <div className="absolute top-4 left-4 z-10 flex flex-wrap items-start gap-3 pointer-events-auto max-w-[calc(100%-2rem)]">
+            <WorldJoinControls />
             <FreezeButton />
             <MusicButton />
             <Button imgUrl={helpImg} onClick={() => setHelpModalOpen(true)}>
@@ -136,6 +141,9 @@ export default function Home() {
             </Button>
             <Button imgUrl={interactImg} onClick={() => setCreateCharacterOpen(true)}>
               Create
+            </Button>
+            <Button imgUrl={interactImg} onClick={() => setCreateAgentOpen(true)}>
+              Agent
             </Button>
             <Button imgUrl={closeImg} onClick={() => setGameStarted(false)}>
               Exit
