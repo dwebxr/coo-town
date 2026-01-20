@@ -44,6 +44,12 @@ export default function CreateAgentDialog({ isOpen, onClose }: Props) {
   const [plan, setPlan] = useState(DEFAULT_PLAN);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const customCharacters = useMemo(
+    () => characters.filter((character) => character.isCustom),
+    [characters],
+  );
+  const selectableCharacters = customCharacters.length > 0 ? customCharacters : characters;
+  const isCustomOnly = customCharacters.length > 0;
 
   const worldStatus = useQuery(api.world.defaultWorldStatus);
   const worldId = worldStatus?.worldId;
@@ -58,14 +64,15 @@ export default function CreateAgentDialog({ isOpen, onClose }: Props) {
       setPlan(DEFAULT_PLAN);
       return;
     }
-    if (!selectedId && characters.length > 0) {
-      setSelectedId(characters[0].name);
+    if (selectableCharacters.length === 0) return;
+    if (!selectedId || !selectableCharacters.some((character) => character.name === selectedId)) {
+      setSelectedId(selectableCharacters[0].name);
     }
-  }, [isOpen, characters, selectedId]);
+  }, [isOpen, selectableCharacters, selectedId]);
 
   const selectedCharacter = useMemo(
-    () => characters.find((character) => character.name === selectedId) ?? null,
-    [characters, selectedId],
+    () => selectableCharacters.find((character) => character.name === selectedId) ?? null,
+    [selectableCharacters, selectedId],
   );
 
   const handleCreate = async () => {
@@ -126,6 +133,11 @@ export default function CreateAgentDialog({ isOpen, onClose }: Props) {
           <div>
             <h2 className="text-3xl font-display">Create AI Agent</h2>
             <p className="text-sm text-white/70 mt-1">Define a character and drop them into the world.</p>
+            <p className="text-xs text-white/50 mt-1">
+              {isCustomOnly
+                ? 'Showing your custom characters.'
+                : 'No custom characters yet — showing defaults.'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -159,7 +171,7 @@ export default function CreateAgentDialog({ isOpen, onClose }: Props) {
         )}
 
         <CharacterSelectGrid
-          characters={characters}
+          characters={selectableCharacters}
           selectedId={selectedId}
           onSelect={(id) => {
             setSelectedId(id);

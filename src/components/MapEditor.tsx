@@ -8,6 +8,11 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { AnimatedSprite as PixiAnimatedSprite, Container, Stage } from '@pixi/react';
+import { StardewFrame } from './ui/stardew/StardewFrame';
+import { StardewButton } from './ui/stardew/StardewButton';
+import { StardewCheckbox } from './ui/stardew/StardewCheckbox';
+import { HangingSign } from './ui/stardew/HangingSign';
+import { StardewTab } from './ui/stardew/StardewTab';
 import { BaseTexture, SCALE_MODES, Spritesheet, type ISpritesheetData } from 'pixi.js';
 // Map editor starts with an empty canvas; tilesets are supplied via packs.
 import * as campfire from '../../data/animations/campfire.json';
@@ -134,16 +139,16 @@ const CATEGORY_FILTERS: Array<{ id: TileCategoryFilter; label: string }> = [
 const MODE_PRESETS: Array<{
   id: EditorMode;
   label: string;
-  tool: 'brush' | 'object' | 'stamp';
-  category?: TileCategory;
+  tool: 'brush' | 'eraser' | 'stamp' | 'object';
+  category?: TileCategoryFilter;
   layer?: number;
 }> = [
-  { id: 'terrain', label: 'Terrain', tool: 'brush', category: 'terrain', layer: 0 },
+  { id: 'terrain', label: 'Terrain', tool: 'brush', category: 'all', layer: 0 },
   { id: 'paths', label: 'Paths', tool: 'brush', category: 'paths', layer: 0 },
-  { id: 'props', label: 'Props', tool: 'brush', category: 'props', layer: 1 },
-  { id: 'buildings', label: 'Buildings', tool: 'brush', category: 'buildings', layer: 0 },
-  { id: 'objects', label: 'Objects', tool: 'object' },
-  { id: 'prefabs', label: 'Prefabs', tool: 'stamp' },
+  { id: 'props', label: 'Props', tool: 'stamp', layer: 1 }, // Legacy mapping
+  { id: 'prefabs', label: 'Prefabs', tool: 'stamp', layer: 1 },
+  { id: 'buildings', label: 'Buildings', tool: 'object', layer: 1 }, // Legacy mapping
+  { id: 'objects', label: 'Objects', tool: 'object', layer: 1 },
 ];
 
 const CATEGORY_STORAGE_KEY = 'ai-town.tilesetCategories.v1';
@@ -1904,1282 +1909,816 @@ const MapEditor = () => {
     alert("Map exported! Check your downloads folder.");
   };
 
-  return (
-    <div className="w-full h-screen bg-[#f5e6c8] text-[#4a3728] flex overflow-hidden">
-      {/* Sidebar: Tile Palette - Stardew Valley Style */}
-      <div className="w-72 bg-[#8b6b4a] p-3 border-r-4 border-[#6d4c30] flex flex-col shrink-0 overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.3)] relative">
-        <div className="absolute top-0 left-4 w-1 h-3 bg-[#3b2a21] z-10"></div>
-        <div className="absolute top-0 right-4 w-1 h-3 bg-[#3b2a21] z-10"></div>
-        <div className="mb-4 mt-2 bg-[#3b2a21] border-2 border-[#5a4030] p-2 rounded shadow-[0_2px_4px_rgba(0,0,0,0.4)] relative">
-          <div className="absolute -top-1 left-3.5 w-2 h-2 rounded-full bg-[#1a110d] border border-[#5a4030]"></div>
-          <div className="absolute -top-1 right-3.5 w-2 h-2 rounded-full bg-[#1a110d] border border-[#5a4030]"></div>
-          <h2 className="text-lg font-display text-center text-[#f6e2b0] drop-shadow-[0_2px_0_#4a3728] tracking-widest">
-            🌿 TILE PALETTE
-          </h2>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-          <div className="mb-3">
-          <label className="block text-xs text-[#f3e2b5]/80 mb-1">Tileset</label>
-          <select
-            value={tileset.id}
-            onChange={(event) => handleTilesetChange(event.target.value)}
-            className="w-full bg-[#5a4030] border-2 border-[#6d4c30] text-sm px-2 py-1 rounded text-[#f3e2b5]"
-          >
-            {tilesetOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-[10px] text-[#f3e2b5]/60">Switching tileset resets the map.</p>
-          {packLoadError && (
-            <p className="mt-2 text-[11px] text-red-300 break-words">{packLoadError}</p>
-          )}
-          {tilesetLoadError && (
-            <p className="mt-2 text-[11px] text-red-300 break-words">{tilesetLoadError}</p>
-          )}
-          </div>
-
-          {/* Display Options */}
-          <div className="mb-3 space-y-1">
-          <label className="flex items-center gap-2 text-sm cursor-pointer text-[#f3e2b5]">
-            <input
-              type="checkbox"
-              checked={showCollision}
-              onChange={(e) => setShowCollision(e.target.checked)}
-              className="rounded accent-[#5fa052]"
-            />
-            Show Collision Overlay
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer text-[#f3e2b5]">
-            <input
-              type="checkbox"
-              checked={autoLayerByTransparency}
-              onChange={(e) => setAutoLayerByTransparency(e.target.checked)}
-              className="rounded accent-[#5fa052]"
-            />
-            Auto place transparent tiles on Overlay
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer text-[#f3e2b5]">
-            <input
-              type="checkbox"
-              checked={showAnimatedSprites}
-              onChange={(e) => setShowAnimatedSprites(e.target.checked)}
-              className="rounded accent-[#5fa052]"
-            />
-            Show Animated Sprites (Pixi)
-          </label>
-          </div>
-
-          {/* Collision Legend */}
-          <div className="mb-3 p-2 bg-[#5a4030] rounded border border-[#6d4c30] text-xs text-[#f3e2b5]">
-          <p className="font-bold mb-1">Collision Legend:</p>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500/50 border border-green-400"></div>
-            <span>Walkable ({COLLISION_WALKABLE})</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500/50 border border-red-400"></div>
-            <span>Blocked ({COLLISION_BLOCKED})</span>
-          </div>
-          </div>
-
-          {/* Selected Tile Preview */}
-          {showTilePanel && (
-            <div className="mb-3 p-3 bg-[#5a4030] border border-[#6d4c30] rounded text-center shadow-[inset_0_0_10px_rgba(0,0,0,0.2)]">
-              <p className="text-xs text-[#f3e2b5]/80 mb-2 font-display tracking-wide uppercase">Selected Tile</p>
-              {selectedTileId !== null && selectedTileId >= 0 && tilesetLoaded && (
-                <div
-                  className="mx-auto border-2 border-[#ffd93d] shadow-[0_0_10px_rgba(255,217,61,0.3)] bg-[#e8d4b0]"
-                  style={{
-                    width: tileSize * 2,
-                    height: tileSize * 2,
-                    backgroundImage: `url(${tilesetUrl})`,
-                    backgroundPosition: `-${getTilePos(selectedTileId).sx * 2}px -${getTilePos(selectedTileId).sy * 2}px`,
-                    backgroundSize: `${tilesetCols * tileSize * 2}px ${tilesetRows * tileSize * 2}px`,
-                  }}
-                />
-              )}
-              <p className="mt-2 text-[10px] text-gray-400">
-                Category:{' '}
-                {selectedTileCategory
-                  ? CATEGORY_FILTERS.find((item) => item.id === selectedTileCategory)?.label ?? selectedTileCategory
-                  : 'Unassigned'}
-              </p>
-              <label className="block mt-2 text-[10px] text-gray-400 mb-1 text-left">Tag selected tile</label>
+  const renderSidebar = () => {
+    return (
+       <div className="flex-1 min-h-0 relative z-10 w-full h-full pt-6">
+         <StardewFrame className="w-full h-full bg-[#8b6b4a] flex flex-col pt-8 pb-4 px-3" style={{ padding: '32px 12px 16px' }}>
+           <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-3">
+            
+            {/* Tileset Selector - Minimalist */}
+            <div className="mb-2">
               <select
-                value={selectedTileCategory ?? ''}
-                onChange={(event) => {
-                  const value = event.target.value as TileCategory | '';
-                  assignSelectedToCategory(value ? value : null);
-                }}
-                disabled={selectedTileId === null || selectedTileId < 0}
-                className="w-full bg-gray-900 border border-gray-700 text-[11px] px-2 py-1 rounded disabled:opacity-50"
+                value={tileset.id}
+                onChange={(event) => handleTilesetChange(event.target.value)}
+                className="w-full bg-[#5a4030] border-2 border-[#6d4c30] text-[10px] px-2 py-1 rounded text-[#f3e2b5] font-display uppercase tracking-wide opacity-80 hover:opacity-100 transition-opacity"
               >
-                <option value="">Unassigned</option>
-                {CATEGORY_FILTERS.filter((item) => item.id !== 'all').map((item) => (
-                  <option key={`tag-${item.id}`} value={item.id}>
-                    {item.label}
+                {tilesetOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
                   </option>
                 ))}
               </select>
             </div>
-          )}
 
-          {showStampPanel && (
-            <div className="mb-3 p-2 bg-gray-700 rounded">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-gray-300">Stamps</p>
-                <button
-                  onClick={() => setShowAutoStampOptions((prev) => !prev)}
-                  className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                >
-                  {showAutoStampOptions ? 'Hide' : 'Options'}
-                </button>
+            {/* Mode-Specific Content */}
+            {activeMode === 'prefabs' ? (
+              /* Stamp/Prop Panel */
+              <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                     <button onClick={() => setStampCaptureMode(p => !p)} className={`text-[10px] px-2 py-1 border-2 text-[#f3e2b5] rounded uppercase ${stampCaptureMode ? 'bg-[#9c2a2a] border-[#e8d4b0]' : 'bg-[#3b2a21] border-[#6d4c30] hover:bg-[#5a4030]'}`}>
+                       {stampCaptureMode ? 'Creating...' : 'New Stamp'}
+                     </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                   {tilesetStampsForSet.map(stamp => (
+                      <button 
+                        key={stamp.id} 
+                        onClick={() => { setActiveStampId(stamp.id); applyMode('prefabs'); }}
+                        className={`p-2 bg-[#3b2a21] rounded border-2 text-center group relative ${activeStampId === stamp.id ? 'border-[#ffd93d]' : 'border-[#5a4030] hover:border-[#8b6b4a]'}`}
+                      >
+                         <span className="text-[9px] text-[#f3e2b5] block truncate">{stamp.name}</span>
+                         <div className="absolute top-0 right-0 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[8px] text-red-300 cursor-pointer" onClick={(e) => { e.stopPropagation(); removeStamp(stamp.id); }}>x</span>
+                         </div>
+                      </button>
+                   ))}
+                  </div>
               </div>
-              <div className="flex flex-wrap gap-1 mb-2">
-                <button
-                  onClick={extractStampsFromMap}
-                  className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                  title="Auto-generate stamps from the current map"
-                >
-                  Extract
-                </button>
-                <button
-                  onClick={() => {
-                    setStampCaptureMode((prev) => {
-                      if (prev) {
-                        setStampSelection(null);
-                        setStampNameDraft('');
-                        setIsStampSelecting(false);
-                      }
-                      return !prev;
-                    });
-                  }}
-                  className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                >
-                  {stampCaptureMode ? 'Cancel' : 'Capture'}
-                </button>
-                <button
-                  onClick={() => stampFileInputRef.current?.click()}
-                  className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                >
-                  Import
-                </button>
-                <button
-                  onClick={exportStamps}
-                  className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={tilesetStampsForSet.length === 0}
-                >
-                  Export
-                </button>
-                <input
-                  ref={stampFileInputRef}
-                  type="file"
-                  accept="application/json"
-                  onChange={handleStampImport}
-                  className="hidden"
-                />
+            ) : activeMode === 'objects' ? (
+              /* Object Panel */
+              <div className="flex flex-col gap-2">
+                   <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                     <button onClick={() => setObjectCaptureMode(p => !p)} className={`text-[10px] px-2 py-1 border-2 text-[#f3e2b5] rounded uppercase ${objectCaptureMode ? 'bg-[#9c2a2a] border-[#e8d4b0]' : 'bg-[#3b2a21] border-[#6d4c30] hover:bg-[#5a4030]'}`}>
+                       {objectCaptureMode ? 'Creating...' : 'New Object'}
+                     </button>
+                  </div>
+                   <div className="grid grid-cols-2 gap-2">
+                      {tilesetObjectsForSet.map(obj => {
+                         const preview = getObjectPreviewData(obj);
+                         return (
+                           <div key={obj.id} 
+                                onClick={() => selectObjectId(obj.id)}
+                                className={`aspect-square bg-[#3b2a21] rounded border-2 relative cursor-pointer group ${activeObjectId === obj.id ? 'border-[#ffd93d] shadow-[0_0_8px_#ffd93d]' : 'border-[#5a4030] hover:border-[#8b6b4a]'}`}
+                           >
+                               <div 
+                                  className="absolute inset-2 bg-no-repeat bg-center"
+                                  style={{
+                                      backgroundImage: `url(${preview.imageUrl})`,
+                                      backgroundPosition: preview.backgroundPosition,
+                                      backgroundSize: preview.backgroundSize,
+                                      transform: 'scale(0.8)'
+                                  }}
+                               />
+                               <span className="absolute bottom-0 w-full text-center text-[8px] bg-black/50 text-white truncate px-0.5">{obj.name}</span>
+                           </div>
+                         );
+                      })}
+                   </div>
               </div>
-              {showAutoStampOptions && (
-                <div className="mb-2 p-2 bg-gray-800/70 rounded text-[11px] space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <label className="flex flex-col gap-1">
-                      <span className="text-gray-400">Min tiles</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={128}
-                        value={autoStampOptions.minTiles}
-                        onChange={(event) =>
-                          updateAutoStampOptions({
-                            minTiles: Math.max(1, Math.min(128, Number(event.target.value) || 1)),
-                          })
-                        }
-                        className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-gray-400">Max stamps</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={autoStampOptions.maxStamps}
-                        onChange={(event) =>
-                          updateAutoStampOptions({
-                            maxStamps: Math.max(1, Math.min(50, Number(event.target.value) || 1)),
-                          })
-                        }
-                        className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-gray-400">Max width</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={64}
-                        value={autoStampOptions.maxWidth}
-                        onChange={(event) =>
-                          updateAutoStampOptions({
-                            maxWidth: Math.max(1, Math.min(64, Number(event.target.value) || 1)),
-                          })
-                        }
-                        className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-gray-400">Max height</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={64}
-                        value={autoStampOptions.maxHeight}
-                        onChange={(event) =>
-                          updateAutoStampOptions({
-                            maxHeight: Math.max(1, Math.min(64, Number(event.target.value) || 1)),
-                          })
-                        }
-                        className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
-                      />
-                    </label>
-                  </div>
-                  <label className="flex items-center gap-2">
-                    <span className="text-gray-400">Ground coverage</span>
-                    <input
-                      type="number"
-                      min={0.4}
-                      max={0.95}
-                      step={0.05}
-                      value={autoStampOptions.groundCoverage}
-                      onChange={(event) =>
-                        updateAutoStampOptions({
-                          groundCoverage: Math.min(0.95, Math.max(0.4, Number(event.target.value) || 0.7)),
-                        })
-                      }
-                      className="w-20 bg-gray-900 border border-gray-700 rounded px-2 py-1"
-                    />
-                    <span className="text-gray-500">0.4 - 0.95</span>
-                  </label>
-                </div>
-              )}
-              {stampCaptureMode && (
-                <p className="text-[11px] text-gray-300 mb-2">
-                  Drag on the map to select a stamp area.
-                </p>
-              )}
-              {stampCaptureMode && selectionBounds && (
-                <div className="space-y-2 mb-2">
-                  <div className="text-[10px] text-gray-400">
-                    Selection: {selectionBounds.maxCol - selectionBounds.minCol + 1}x
-                    {selectionBounds.maxRow - selectionBounds.minRow + 1}
-                  </div>
-                  <input
-                    type="text"
-                    value={stampNameDraft}
-                    onChange={(event) => setStampNameDraft(event.target.value)}
-                    placeholder="Stamp name"
-                    className="w-full bg-gray-900 border border-gray-700 text-[11px] px-2 py-1 rounded"
-                  />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={saveStampFromSelection}
-                      className="text-[11px] px-2 py-1 border border-emerald-400 text-emerald-200 rounded hover:bg-emerald-500/10"
-                    >
-                      Save Stamp
-                    </button>
-                    <button
-                      onClick={() => setStampSelection(null)}
-                      className="text-[11px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-              )}
-              <label className="flex items-center gap-2 text-[11px] text-gray-300 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={stampSkipEmpty}
-                  onChange={(event) => setStampSkipEmpty(event.target.checked)}
-                  className="rounded"
-                />
-                Stamp skips empty tiles
-              </label>
-              <div className="mt-2 max-h-32 overflow-y-auto pr-1 space-y-1">
-                {tilesetStampsForSet.length === 0 ? (
-                  <p className="text-[11px] text-gray-400">No stamps yet.</p>
-                ) : (
-                  tilesetStampsForSet.map((stamp) => (
-                    <div key={stamp.id} className="flex items-start gap-2">
-                      {tilesetLoaded ? (
-                        (() => {
-                          const preview = getStampPreviewData(stamp);
-                          return (
-                            <div
-                              className="relative border border-gray-600 bg-gray-900"
-                              style={{ width: preview.width, height: preview.height }}
-                            >
-                              {preview.tiles.map((tile, index) => {
-                                const pos = getTilePos(tile.tileId);
-                                return (
-                                  <div
-                                    key={`stamp-thumb-${stamp.id}-${index}`}
-                                    className="absolute"
-                                    style={{
-                                      left: tile.x * preview.previewTileSize,
-                                      top: tile.y * preview.previewTileSize,
-                                      width: preview.previewTileSize,
-                                      height: preview.previewTileSize,
-                                      backgroundImage: `url(${tilesetUrl})`,
-                                      backgroundPosition: `-${pos.sx * preview.scale}px -${pos.sy * preview.scale}px`,
-                                      backgroundSize: `${tilesetCols * tileSize * preview.scale}px ${tilesetRows * tileSize * preview.scale}px`,
-                                    }}
-                                  />
-                                );
-                              })}
-                            </div>
-                          );
-                        })()
-                      ) : (
-                        <div className="w-12 h-12 border border-gray-600 bg-gray-900" />
-                      )}
-                      <div className="flex-1 space-y-1">
-                        {editingStampId === stamp.id ? (
-                          <div className="space-y-1">
-                            <input
-                              value={stampRenameDraft}
-                              onChange={(event) => setStampRenameDraft(event.target.value)}
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px]"
-                            />
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => {
-                                  renameStamp(stamp.id, stampRenameDraft);
-                                  setEditingStampId(null);
-                                }}
-                                className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400 text-[10px]"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingStampId(null);
-                                  setStampRenameDraft('');
-                                }}
-                                className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400 text-[10px]"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                            setActiveStampId(stamp.id);
-                            applyMode('prefabs');
+            ) : (
+              /* Terrain / Path Panel (Tile Grid) */
+              <div className="flex flex-col gap-2">
+                 {/* Filter Tabs if needed, or just show all */}
+                 <div className="grid gap-[1px]" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}>
+                    {paletteTileIds.map(tileId => {
+                       const { sx, sy } = getTilePos(tileId);
+                       const isSelected = selectedTileId === tileId;
+                        return (
+                          <div
+                            key={tileId}
+                            onClick={() => selectTileId(tileId)}
+                            className={`cursor-pointer relative hover:brightness-110 active:scale-95 transition-transform ${isSelected ? 'z-10 ring-2 ring-[#ffd93d]' : ''}`}
+                            style={{
+                              width: '100%',
+                              paddingBottom: '100%',
                             }}
-                            className={`w-full text-left text-[11px] px-2 py-1 border rounded ${
-                              activeStampId === stamp.id
-                                ? 'border-yellow-400 bg-yellow-500/10 text-yellow-200'
-                                : 'border-gray-600 hover:border-gray-400 text-gray-200'
-                            }`}
                           >
-                            {stamp.name} <span className="text-gray-500">({stamp.width}x{stamp.height})</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => {
-                            setEditingStampId(stamp.id);
-                            setStampRenameDraft(stamp.name);
-                          }}
-                          className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                          title="Rename stamp"
-                        >
-                          Rename
-                        </button>
-                        <button
-                          onClick={() => removeStamp(stamp.id)}
-                          className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                          title="Delete stamp"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {activeStamp && (
-                <div className="mt-2 text-[11px] text-gray-300 space-y-2">
-                  <div>
-                    Active: <span className="text-gray-100">{activeStamp.name}</span> ({activeStamp.width}x{activeStamp.height})
-                  </div>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <button
-                      onClick={() =>
-                        setStampRotation((prev) => ((prev + 270) % 360) as StampRotation)
-                      }
-                      className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Rotate Left
-                    </button>
-                    <button
-                      onClick={() =>
-                        setStampRotation((prev) => ((prev + 90) % 360) as StampRotation)
-                      }
-                      className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Rotate Right
-                    </button>
-                    <button
-                      onClick={() => setStampFlipX((prev) => !prev)}
-                      className={`px-2 py-1 border rounded ${
-                        stampFlipX ? 'border-yellow-400 text-yellow-200' : 'border-gray-600 hover:border-gray-400'
-                      }`}
-                    >
-                      Flip X
-                    </button>
-                    <button
-                      onClick={() => setStampFlipY((prev) => !prev)}
-                      className={`px-2 py-1 border rounded ${
-                        stampFlipY ? 'border-yellow-400 text-yellow-200' : 'border-gray-600 hover:border-gray-400'
-                      }`}
-                    >
-                      Flip Y
-                    </button>
-                    <button
-                      onClick={() => {
-                        setStampRotation(0);
-                        setStampFlipX(false);
-                        setStampFlipY(false);
-                      }}
-                      className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                  <div className="text-[10px] text-gray-400">
-                    Rotation {stampRotation}deg{stampFlipX ? ' | Flip X' : ''}{stampFlipY ? ' | Flip Y' : ''}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {showObjectPanel && (
-            <div className="mb-3 p-2 bg-gray-700 rounded">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-gray-300">Objects / Props</p>
-                <button
-                  onClick={() =>
-                    setObjectCaptureMode((prev) => {
-                      const next = !prev;
-                      if (next) {
-                        setPaletteMode('all');
-                        setActiveCategory('all');
-                        setBulkTagMode(false);
-                        setPaletteSelection(null);
-                        setIsPaletteSelecting(false);
-                      } else {
-                        setObjectPaletteSelection(null);
-                        setObjectNameDraft('');
-                      }
-                      return next;
-                    })
-                  }
-                  className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                >
-                  {objectCaptureMode ? 'Cancel' : 'Capture'}
-                </button>
-              </div>
-              <label className="flex items-center gap-2 text-[11px] text-gray-300 mb-2">
-                Pack
-                <select
-                  value={activeObjectPack?.id ?? ''}
-                  onChange={(event) => setActiveObjectPackId(event.target.value)}
-                  className="flex-1 bg-gray-900 border border-gray-700 text-[11px] px-2 py-1 rounded"
-                  disabled={objectPacks.length === 0}
-                >
-                  {objectPacks.length === 0 ? (
-                    <option value="">No packs loaded</option>
-                  ) : (
-                    objectPacks.map((pack) => (
-                      <option key={pack.id} value={pack.id}>
-                        {pack.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </label>
-              {objectCaptureMode && (
-                <div className="space-y-2 mb-2">
-                  <p className="text-[11px] text-gray-300">
-                    Drag on the tileset below to capture a single-sprite object.
-                  </p>
-                  {objectSelectionBounds && (
-                    <div className="text-[10px] text-gray-400">
-                      Selection: {objectSelectionBounds.maxCol - objectSelectionBounds.minCol + 1}x
-                      {objectSelectionBounds.maxRow - objectSelectionBounds.minRow + 1} tiles
-                    </div>
-                  )}
-                  <input
-                    type="text"
-                    value={objectNameDraft}
-                    onChange={(event) => setObjectNameDraft(event.target.value)}
-                    placeholder="Object name"
-                    className="w-full bg-gray-900 border border-gray-700 text-[11px] px-2 py-1 rounded"
-                  />
-                  <label className="flex items-center gap-2 text-[11px] text-gray-300">
-                    Anchor
-                    <select
-                      value={objectAnchor}
-                      onChange={(event) => setObjectAnchor(event.target.value as ObjectAnchor)}
-                      className="bg-gray-900 border border-gray-700 text-[11px] px-2 py-1 rounded"
-                    >
-                      <option value="bottom-left">Bottom-left</option>
-                      <option value="top-left">Top-left</option>
-                    </select>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={saveObjectFromSelection}
-                      disabled={!objectSelectionBounds}
-                      className="text-[11px] px-2 py-1 border border-emerald-400 text-emerald-200 rounded hover:bg-emerald-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Save Object
-                    </button>
-                    <button
-                      onClick={() => setObjectPaletteSelection(null)}
-                      className="text-[11px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-              )}
-              <div className="mt-1 max-h-32 overflow-y-auto pr-1 space-y-1">
-                {tilesetObjectsForSet.length === 0 ? (
-                  <p className="text-[11px] text-gray-400">No objects yet.</p>
-                ) : (
-                  tilesetObjectsForSet.map((obj) => (
-                    <div key={obj.id} className="flex items-start gap-2">
-                      {tilesetLoaded || obj.imagePath ? (
-                        (() => {
-                          const preview = getObjectPreviewData(obj);
-                          return (
-                            <div
-                              className="border border-gray-600 bg-gray-900"
-                              style={{
-                                width: preview.width,
-                                height: preview.height,
-                                backgroundImage: `url(${preview.imageUrl})`,
-                                backgroundPosition: preview.backgroundPosition,
-                                backgroundSize: preview.backgroundSize,
-                                backgroundRepeat: 'no-repeat',
-                              }}
-                            />
-                          );
-                        })()
-                      ) : (
-                        <div className="w-12 h-12 border border-gray-600 bg-gray-900" />
-                      )}
-                      <div className="flex-1 space-y-1">
-                        {obj.readonly && (
-                          <div className="text-[10px] text-gray-500">{obj.packName ?? 'Pack'}</div>
-                        )}
-                        {editingObjectId === obj.id ? (
-                          <div className="space-y-1">
-                            <input
-                              value={objectRenameDraft}
-                              onChange={(event) => setObjectRenameDraft(event.target.value)}
-                              className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1 text-[11px]"
-                            />
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => {
-                                  renameObject(obj.id, objectRenameDraft);
-                                  setEditingObjectId(null);
-                                }}
-                                className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400 text-[10px]"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingObjectId(null);
-                                  setObjectRenameDraft('');
-                                }}
-                                className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400 text-[10px]"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                             <div className="absolute inset-0" style={{
+                              backgroundImage: `url(${tilesetUrl})`,
+                              backgroundPosition: `-${sx}px -${sy}px`,
+                              backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                              imageRendering: 'pixelated'
+                             }} />
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              selectObjectId(obj.id);
-                            }}
-                            className={`w-full text-left text-[11px] px-2 py-1 border rounded ${
-                              activeObjectId === obj.id
-                                ? 'border-yellow-400 bg-yellow-500/10 text-yellow-200'
-                                : 'border-gray-600 hover:border-gray-400 text-gray-200'
-                            }`}
-                          >
-                            {obj.name} <span className="text-gray-500">({obj.tileWidth}x{obj.tileHeight})</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <button
-                          onClick={() => {
-                            if (obj.readonly) return;
-                            setEditingObjectId(obj.id);
-                            setObjectRenameDraft(obj.name);
-                          }}
-                          disabled={obj.readonly}
-                          className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Rename object"
-                        >
-                          Rename
-                        </button>
-                        <button
-                          onClick={() => removeObjectDefinition(obj.id)}
-                          disabled={obj.readonly}
-                          className="text-[10px] px-2 py-1 border border-gray-600 rounded hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Delete object"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {activeObject && (
-                <div className="mt-2 text-[11px] text-gray-300">
-                  Active: <span className="text-gray-100">{activeObject.name}</span> ({activeObject.tileWidth}x{activeObject.tileHeight}) · Anchor {activeObject.anchor}
-                </div>
-              )}
-            </div>
-          )}
-
-          {showTilePanel && (
-            <div
-              className={`border border-gray-600 rounded p-1 max-h-[48vh] overflow-y-auto ${
-                objectCaptureMode ? 'overflow-x-auto' : 'overflow-x-hidden'
-              }`}
-              onContextMenu={(event) => event.preventDefault()}
-            >
-              <div className="mb-2">
-                <p className="text-xs text-[#f3e2b5]/80 mb-2 font-display tracking-wide uppercase">Filters</p>
-                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                  {CATEGORY_FILTERS.map((item) => (
-                     <button
-                      key={`cat-${item.id}`}
-                      onClick={() => setActiveCategory(item.id)}
-                      disabled={objectCaptureMode}
-                      className={`px-2 py-1.5 border-2 rounded text-[10px] uppercase font-bold tracking-wide transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                        activeCategory === item.id
-                          ? 'bg-[#a8683a] border-[#ffd93d] text-[#fff2c4] shadow-[inset_0_0_0_1px_#ffd93d] -translate-y-[1px]'
-                          : 'bg-[#5a3a2a] border-[#b88d5e] text-[#f3e2b5] hover:bg-[#6a452f] hover:border-[#cfb084]'
-                      }`}
-                    >
-                      {item.label} <span className="opacity-70">({categoryCounts[item.id]})</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  <button
-                    onClick={autoTagUsedTiles}
-                    className="flex-1 text-[10px] px-2 py-1.5 bg-[#3b2a21] border border-[#5a4030] text-[#f3e2b5] rounded hover:bg-[#5a4030] uppercase font-bold tracking-wide"
-                  >
-                    Auto-tag used
-                  </button>
-                  <span className="text-[9px] text-[#f3e2b5]/60 italic">Terrain/Props</span>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setBulkTagMode((prev) => {
-                        const next = !prev;
-                        if (next) {
-                          setPaletteMode('all');
-                          setActiveCategory('all');
-                        }
-                        return next;
-                      })
-                    }
-                    disabled={objectCaptureMode}
-                    className={`text-[11px] px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed ${
-                      bulkTagMode
-                        ? 'border-yellow-400 text-yellow-200'
-                        : 'border-gray-600 hover:border-gray-400 text-gray-200'
-                    }`}
-                  >
-                    Batch Tag
-                  </button>
-                  <span className="text-[10px] text-gray-500">
-                    {bulkTagMode
-                      ? paletteMode === 'all' && activeCategory === 'all'
-                        ? `Selected ${paletteSelectionCount}`
-                        : 'Switch to All + All categories'
-                      : 'Drag to select tiles'}
-                  </span>
-                </div>
-                {bulkTagMode && paletteSelectionCount > 0 && (
-                  <div className="mt-2 grid grid-cols-2 gap-1 text-[11px]">
-                    {CATEGORY_FILTERS.filter((item) => item.id !== 'all').map((item) => {
-                      const category = item.id as TileCategory;
-                      return (
-                        <button
-                          key={`bulk-${item.id}`}
-                          onClick={() => applyCategoryToSelection(category)}
-                          className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                        >
-                          {item.label}
-                        </button>
-                      );
+                        );
                     })}
-                    <button
-                      onClick={() => applyCategoryToSelection(null)}
-                      className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      onClick={() => setPaletteSelection(null)}
-                      className="px-2 py-1 border border-gray-600 rounded hover:border-gray-400"
-                    >
-                      Deselect
-                    </button>
-                  </div>
-                )}
+                 </div>
               </div>
-              <div className="flex items-center gap-2 mb-2 text-xs text-gray-300">
+            )}
+           </div>
+         </StardewFrame>
+       </div>
+    );
+  };
+
+    /* -------------------------------------------------------------------------
+   * RENDER: Top Toolbar
+   * ----------------------------------------------------------------------- */
+  const renderToolbar = () => {
+    return (
+      <div className="col-start-2 row-start-1 h-[72px] flex items-center relative z-20">
+       <StardewFrame className="w-full h-full flex items-center justify-between px-4 py-2 gap-4">
+           {/* Wooden Tabs Section */}
+           <div className="flex items-center gap-1">
+               {[
+                 { label: 'TERRAIN', mode: 'terrain' as EditorMode, category: 'all' as TileCategoryFilter },
+                 { label: 'PATHS', mode: 'paths' as EditorMode, category: 'paths' as TileCategoryFilter },
+                 { label: 'PROPS', mode: 'prefabs' as EditorMode, category: null },
+                 { label: 'BUILDINGS', mode: 'objects' as EditorMode, category: null }
+               ].map((tab) => (
+                  <StardewTab
+                    key={tab.label}
+                    label={tab.label}
+                    isActive={activeMode === tab.mode}
+                    onClick={() => {
+                       applyMode(tab.mode);
+                       if (tab.category) setActiveCategory(tab.category);
+                    }}
+                    className="flex-shrink-0"
+                  />
+               ))}
+           </div>
+
+           {/* Tool Icons Section */}
+           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#4a3022] rounded-lg border-2 border-[#6d4c30] shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]">
+               {[
+                { id: 'brush', icon: '/ai-town/assets/ui/icons/brush.png' },
+                { id: 'eraser', icon: '/ai-town/assets/ui/icons/eraser.png' },
+                { id: 'stamp', icon: '/ai-town/assets/ui/icons/stamp.png' },
+              ].map((tool) => (
                 <button
-                  onClick={() => setPaletteMode('used')}
-                  disabled={objectCaptureMode}
-                  className={`px-2 py-1 border disabled:opacity-50 disabled:cursor-not-allowed ${
-                    paletteMode === 'used'
-                      ? 'bg-yellow-500/20 border-yellow-400 text-yellow-200'
-                      : 'bg-gray-800 border-gray-700 hover:border-gray-500'
+                  key={tool.id}
+                  onClick={() => {
+                    if (tool.id === 'stamp') applyMode('prefabs');
+                    else activateTileTool(tool.id as any);
+                  }}
+                  className={`relative w-10 h-10 flex items-center justify-center transition-all duration-75 rounded-sm ${
+                    (tool.id === 'stamp' && activeMode === 'prefabs') ||
+                    activeTool === tool.id
+                      ? 'bg-[#e8d4b0] border-2 border-[#ffd93d] shadow-[0_0_8px_rgba(255,217,61,0.5)] scale-110 z-10'
+                      : 'bg-[#8b6b4a] border-2 border-[#5a3a2a] hover:bg-[#d4b078] hover:-translate-y-0.5'
                   }`}
+                  title={tool.id.toUpperCase()}
                 >
-                  Used ({visibleUsedTileIds.length})
+                  <img
+                    src={tool.icon}
+                    alt={tool.id}
+                    className="w-7 h-7 rendering-pixelated drop-shadow-sm"
+                  />
                 </button>
-                <button
-                  onClick={() => setPaletteMode('all')}
-                  disabled={objectCaptureMode}
-                  className={`px-2 py-1 border disabled:opacity-50 disabled:cursor-not-allowed ${
-                    paletteMode === 'all'
-                      ? 'bg-yellow-500/20 border-yellow-400 text-yellow-200'
-                      : 'bg-gray-800 border-gray-700 hover:border-gray-500'
-                  }`}
-                >
-                  All ({visibleAllTileIds.length})
-                </button>
+              ))}
+           </div>
+       </StardewFrame>
+      </div>
+    );
+  };
+
+  /* -------------------------------------------------------------------------
+   * RENDER: Right Panel (Options)
+   * ----------------------------------------------------------------------- */
+  /* -------------------------------------------------------------------------
+   * RENDER: Right Panel (Options)
+   * ----------------------------------------------------------------------- */
+  const renderRightPanel = () => {
+    return (
+       <div className="col-start-3 row-span-3 flex flex-col gap-4 h-full pt-10 pb-4"> 
+          {/* Options Panel */}
+          <StardewFrame className="flex-none p-4 pb-6">
+              <div className="flex flex-col gap-4">
+                 
+                 <label className="flex items-center gap-3 cursor-pointer group hover:brightness-110 transition-all">
+                    <StardewCheckbox 
+                      label="GRID" 
+                      checked={showCollision} 
+                      onChange={setShowCollision}
+                    />
+                 </label>
+
+                 <label className="flex items-center gap-3 cursor-pointer group hover:brightness-110 transition-all">
+                    <StardewCheckbox 
+                      label="OBJECTS" 
+                      checked={activeMode === 'objects'} 
+                      onChange={() => applyMode('objects')}
+                    />
+                 </label>
+
+                 <label className="flex items-center gap-3 cursor-pointer group hover:brightness-110 transition-all">
+                     <StardewCheckbox 
+                      label="MUSIC" 
+                      checked={true} 
+                      onChange={() => {}}
+                    />
+                 </label>
+                 
+                 <label className="flex items-center gap-3 cursor-pointer group hover:brightness-110 transition-all">
+                     <StardewCheckbox 
+                      label="MUSIC" 
+                      checked={false} 
+                      onChange={() => {}}
+                      className="opacity-50"
+                    />
+                 </label>
               </div>
-              {!tilesetLoaded ? (
-                <p className="text-center text-gray-500">Loading tileset...</p>
-              ) : paletteMode === 'used' && visibleUsedTileIds.length === 0 ? (
-                <div className="text-xs text-gray-400">
-                  No used tiles yet. Switch to <span className="text-gray-200">All</span> to pick a tile.
-                </div>
-              ) : activeCategory !== 'all' && paletteTileIds.length === 0 ? (
-                <div className="text-xs text-gray-400">
-                  No tiles tagged for {CATEGORY_FILTERS.find((item) => item.id === activeCategory)?.label ?? activeCategory}.
-                  Tag tiles above to populate this category.
-                </div>
-              ) : (
-                <div
-                  className="grid gap-[1px]"
-                  style={{ gridTemplateColumns: `repeat(${objectCaptureMode ? tilesetCols : 8}, ${tileSize}px)` }}
-                >
-                  {!objectCaptureMode && (
-                    <div
-                      onClick={() => {
-                        if (!bulkTagMode || paletteMode !== 'all' || activeCategory !== 'all') {
-                          selectTileId(-1);
+          </StardewFrame>
+       </div>
+    );
+  };
+
+  /* -------------------------------------------------------------------------
+   * RENDER: Bottom Bar
+   * ----------------------------------------------------------------------- */
+  const renderBottomBar = () => {
+    return (
+        <div className="col-start-2 row-start-3 flex gap-4 h-[84px] p-2">
+             <StardewFrame className="flex-1 flex items-center justify-center px-4">
+                <div className="flex gap-2 p-3 bg-[#e8d4b0] rounded-lg border-2 border-[#d4b078] shadow-[inset_0_2px_6px_rgba(0,0,0,0.3)]">
+                   {activeMode === 'objects' ? (
+                      quickbarObjectSlots.map((objectId, index) => {
+                         if (!objectId) {
+                            return (
+                                <div key={`qb-obj-empty-${index}`} className="relative w-12 h-12 border-2 border-[#c2a075] bg-[#d9bd92] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-sm flex items-center justify-center">
+                                  <span className="text-[#a88b6a]/50 text-xl">+</span>
+                                  <span className="absolute -top-2 -left-2 w-5 h-5 flex items-center justify-center bg-[#8b6b4a] text-[#f6e2b0] text-[10px] font-bold border border-[#5a4030] rounded-full z-10">{index + 1}</span>
+                                </div>
+                            );
+                         }
+                         const objDef = objectsById.get(objectId);
+                         if (!objDef) return null;
+                         const preview = getObjectPreviewData(objDef);
+                         return (
+                            <button
+                                key={`qb-obj-${index}`}
+                                onClick={() => selectObjectId(objectId)}
+                                className={`relative w-12 h-12 border-2 rounded-sm active:scale-95 transition-all group ${
+                                    activeObjectId === objectId
+                                    ? 'border-[#ffd93d] bg-[#fdf6d8] shadow-[0_0_8px_#ffd93d] z-10'
+                                    : 'border-[#8b6b4a] bg-[#f9eaca] hover:border-[#a88b6a]'
+                                }`}
+                            >
+                                <span className={`absolute -top-2 -left-2 w-5 h-5 flex items-center justify-center text-[10px] font-bold border rounded-full z-20 ${
+                                  activeObjectId === objectId ? 'bg-[#ffd93d] text-[#5a4030] border-[#e8b030]' : 'bg-[#8b6b4a] text-[#f6e2b0] border-[#5a4030]' 
+                                }`}>{index + 1}</span>
+                                <div 
+                                    className="w-full h-full bg-no-repeat bg-center"
+                                    style={{
+                                        backgroundImage: `url(${preview.imageUrl})`,
+                                        backgroundPosition: preview.backgroundPosition,
+                                        backgroundSize: preview.backgroundSize,
+                                        transform: 'scale(0.8)'
+                                    }}
+                                />
+                            </button>
+                         );
+                      })
+                   ) : (
+                      quickbarTileSlots.map((tileId, index) => {
+                        if (tileId === null || tileId === undefined) {
+                            return (
+                                <div key={`qb-tile-empty-${index}`} className="relative w-12 h-12 border-2 border-[#c2a075] bg-[#d9bd92] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] rounded-sm flex items-center justify-center">
+                                  <span className="absolute -top-2 -left-2 w-5 h-5 flex items-center justify-center bg-[#8b6b4a] text-[#f6e2b0] text-[10px] font-bold border border-[#5a4030] rounded-full z-10">{index + 1}</span>
+                                </div>
+                            );
                         }
-                      }}
-                      className={`cursor-pointer border-2 flex items-center justify-center text-xs text-red-400 ${
-                        selectedTileId === -1 ? 'border-yellow-400' : 'border-gray-600'
-                      }`}
-                      style={{ width: tileSize, height: tileSize, backgroundColor: '#333' }}
-                      title="Eraser (-1)"
-                    >
-                      X
-                    </div>
-                  )}
-                  {paletteTileIds.map((tileId) => {
-                    const isHiddenTile = hiddenTiles[tileId];
-                    const { sx, sy } = getTilePos(tileId);
-                    const usedCount = usedTileStats.counts.get(tileId) ?? 0;
-                    const isPaletteSelected = paletteSelectionSet.has(tileId);
-                    const isObjectSelected = objectSelectionSet.has(tileId);
-                    const borderClass = objectCaptureMode && isObjectSelected
-                      ? 'border-emerald-400'
-                      : isPaletteSelected
-                      ? 'border-cyan-400'
-                      : selectedTileId === tileId
-                      ? 'border-yellow-400'
-                      : objectCaptureMode && isHiddenTile
-                      ? 'border-gray-700'
-                      : 'border-transparent hover:border-gray-500';
+                        const pos = getTilePos(tileId);
+                        return (
+                            <button
+                                key={`qb-tile-${index}`}
+                                onClick={() => selectTileId(tileId)}
+                                className={`relative w-12 h-12 border-2 rounded-sm active:scale-95 transition-all group ${
+                                    selectedTileId === tileId
+                                    ? 'border-[#ffd93d] bg-[#fdf6d8] shadow-[0_0_8px_#ffd93d] z-10'
+                                    : 'border-[#8b6b4a] bg-[#f9eaca] hover:border-[#a88b6a]'
+                                }`}
+                            >
+                                <span className={`absolute -top-2 -left-2 w-5 h-5 flex items-center justify-center text-[10px] font-bold border rounded-full z-20 ${
+                                  selectedTileId === tileId ? 'bg-[#ffd93d] text-[#5a4030] border-[#e8b030]' : 'bg-[#8b6b4a] text-[#f6e2b0] border-[#5a4030]' 
+                                }`}>{index + 1}</span>
+                                <div
+                                    className="w-full h-full rendering-pixelated"
+                                    style={{
+                                        backgroundImage: `url(${tilesetUrl})`,
+                                        backgroundPosition: `-${pos.sx}px -${pos.sy}px`,
+                                        backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                                    }}
+                                />
+                            </button>
+                        );
+                      })
+                   )}
+                </div>
+             </StardewFrame>
+             <StardewFrame className="w-auto flex items-center px-6 gap-4">
+                 <div className="flex items-center gap-1 ml-2 bg-[#3b2a21] p-1 rounded border border-[#5a4030]">
+                    <span className="text-[#f6e2b0] text-[10px] uppercase font-bold px-1 font-display">Layer</span>
+                    <button onClick={() => setActiveLayerIndex(0)} className={`px-2 py-0.5 text-[10px] border-2 rounded font-display transition-colors ${activeLayerIndex === 0 ? 'bg-[#8b6b4a] border-[#ffd93d] text-[#fff2c4]' : 'bg-[#5a4030] border-[#6d4c30] text-[#a88b6a] hover:bg-[#6d4c30]'}`}>Base</button>
+                    <button onClick={() => setActiveLayerIndex(1)} className={`px-2 py-0.5 text-[10px] border-2 rounded font-display transition-colors ${activeLayerIndex === 1 ? 'bg-[#8b6b4a] border-[#ffd93d] text-[#fff2c4]' : 'bg-[#5a4030] border-[#6d4c30] text-[#a88b6a] hover:bg-[#6d4c30]'}`}>Overlay</button>
+                 </div>
+                 <div className="text-[#f6e2b0]/60 text-[10px] font-display">
+                    Map: {MAP_WIDTH}x{MAP_HEIGHT}
+                 </div>
+             </StardewFrame>
+        </div>
+    );
+  };
+
+  const renderCanvas = () => {
+    return (
+        <div 
+             className="w-full h-full relative overflow-auto custom-scrollbar"
+             onContextMenu={(event) => event.preventDefault()}
+             onPointerLeave={() => setHoverInfo(null)}
+        >
+          {/* Main Map Content */}
+          <div
+             className="relative inline-block"
+             style={{ width: mapPixelWidth, height: mapPixelHeight }}
+          >
+             <div
+               className="absolute inset-0 bg-[#d4c4a0] border-2 border-[#8b6b4a] shadow-xl rounded"
+               style={{
+                 display: 'grid',
+                 gridTemplateColumns: `repeat(${MAP_WIDTH}, ${tileSize}px)`,
+               }}
+             >
+                {/* BG Layers */}
+                {Array.from({ length: MAP_HEIGHT }).map((_, rIndex) =>
+                  Array.from({ length: MAP_WIDTH }).map((_, cIndex) => {
+                    const hasTile = bgLayers.some((layer) => (layer[cIndex]?.[rIndex] ?? -1) >= 0);
                     return (
                       <div
-                        key={tileId}
-                        onClick={() => {
-                          if (objectCaptureMode) return;
-                          if (!bulkTagMode || paletteMode !== 'all' || activeCategory !== 'all') {
-                            selectTileId(tileId);
-                          }
-                        }}
-                        onPointerDown={(event) => handlePalettePointerDown(event, tileId)}
-                        onPointerEnter={() => handlePalettePointerEnter(tileId)}
-                        className={`cursor-pointer border-2 ${borderClass}`}
+                        key={`${rIndex}-${cIndex}`}
+                        onPointerDown={(event) => handlePointerDown(event, rIndex, cIndex)}
+                        onPointerEnter={() => handlePointerEnter(rIndex, cIndex)}
+                        className={`border hover:border-[#ffd93d] hover:shadow-[0_0_8px_rgba(255,217,61,0.5)] cursor-crosshair relative transition-all duration-75 ${
+                          hasTile ? 'border-[#8b6b4a]/20' : 'border-[#8b6b4a]/40'
+                        }`}
+                        style={{ width: tileSize, height: tileSize }}
+                      >
+                         {bgLayers.map((layer, layerIndex) => {
+                           const tileId = layer[cIndex]?.[rIndex] ?? -1;
+                           if (tileId < 0 || !tilesetLoaded) return null;
+                           const pos = getTilePos(tileId);
+                           return (
+                             <div
+                               key={`layer-${layerIndex}`}
+                               className="absolute inset-0"
+                               style={{
+                                 backgroundImage: `url(${tilesetUrl})`,
+                                 backgroundPosition: `-${pos.sx}px -${pos.sy}px`,
+                                 backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                               }}
+                             />
+                           );
+                         })}
+                      </div>
+                    );
+                  })
+                )}
+             </div>
+
+             {/* Placed Objects */}
+             {placedObjectsSorted.length > 0 && (
+                <div className="absolute inset-0 pointer-events-none">
+                  {placedObjectsSorted.map((placement) => {
+                    const objectDef = objectsById.get(placement.objectId);
+                    if (!objectDef) return null;
+                    const bounds = getObjectPixelBounds(objectDef, placement);
+                    const objectImageUrl = objectDef.imagePath ? resolveAssetPath(objectDef.imagePath) : tilesetUrl;
+                    const objectPixelWidth = objectDef.pixelWidth ?? objectDef.tileWidth * tileSize;
+                    const objectPixelHeight = objectDef.pixelHeight ?? objectDef.tileHeight * tileSize;
+                    const objectOffsetY =
+                      objectDef.imagePath && objectDef.anchor === 'bottom-left'
+                        ? Math.max(0, bounds.height - objectPixelHeight)
+                        : 0;
+                    return (
+                      <div
+                        key={placement.id}
+                        className="absolute"
                         style={{
-                          width: tileSize,
-                          height: tileSize,
-                          backgroundColor: isHiddenTile ? '#111827' : undefined,
-                          backgroundImage:
-                            isHiddenTile && objectCaptureMode ? 'none' : `url(${tilesetUrl})`,
-                          backgroundPosition: `-${sx}px -${sy}px`,
-                          backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                          left: bounds.left,
+                          top: bounds.top,
+                          width: bounds.width,
+                          height: bounds.height,
+                          backgroundImage: `url(${objectImageUrl})`,
+                          backgroundPosition: objectDef.imagePath
+                            ? `0px ${objectOffsetY}px`
+                            : `-${objectDef.tileX * tileSize}px -${objectDef.tileY * tileSize}px`,
+                          backgroundSize: objectDef.imagePath
+                            ? `${objectPixelWidth}px ${objectPixelHeight}px`
+                            : `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                          backgroundRepeat: 'no-repeat',
                         }}
-                        title={
-                          isHiddenTile
-                            ? `Hidden tile #${tileId}`
-                            : paletteMode === 'used'
-                            ? `Tile #${tileId} · Used ${usedCount}`
-                            : `Tile #${tileId}`
-                        }
                       />
                     );
                   })}
                 </div>
-              )}
+             )}
+
+             {/* Animated Sprites */}
+             {showAnimatedSprites && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <Stage width={mapPixelWidth} height={mapPixelHeight} options={{ backgroundAlpha: 0, antialias: false }}>
+                    <PixiAnimatedSpritesLayer sprites={animatedSprites} />
+                  </Stage>
+                </div>
+             )}
+
+             {/* Collision Overlay */}
+             {showCollision && (
+                <div className="absolute inset-0 pointer-events-none" style={{ display: 'grid', gridTemplateColumns: `repeat(${MAP_WIDTH}, ${tileSize}px)` }}>
+                  {Array.from({ length: MAP_HEIGHT }).map((_, rIndex) =>
+                    Array.from({ length: MAP_WIDTH }).map((_, cIndex) => {
+                      const collisionValue = collisionLayer[cIndex]?.[rIndex] ?? -1;
+                      const overlayClass = collisionValue === COLLISION_WALKABLE ? 'bg-green-500/30' : collisionValue === COLLISION_BLOCKED ? 'bg-red-500/30' : collisionValue !== -1 ? 'bg-yellow-500/30' : '';
+                      return <div key={`collision-${rIndex}-${cIndex}`} className={overlayClass} style={{ width: tileSize, height: tileSize }} />;
+                    })
+                  )}
+                </div>
+             )}
+
+             {/* Stamp Preview */}
+             {activeTool === 'stamp' && activeStamp && hoverInfo && transformedStampSize && tilesetLoaded && (
+                <div className="absolute pointer-events-none" style={{ left: hoverInfo.col * tileSize, top: hoverInfo.row * tileSize, width: transformedStampSize.width * tileSize, height: transformedStampSize.height * tileSize, opacity: stampPreviewValid ? 0.7 : 0.4 }}>
+                   {stampPreviewTiles.map((tile, index) => {
+                     const pos = getTilePos(tile.tileId);
+                     return (
+                       <div key={`stamp-preview-${index}`} className="absolute" style={{ left: tile.x * tileSize, top: tile.y * tileSize, width: tileSize, height: tileSize, backgroundImage: `url(${tilesetUrl})`, backgroundPosition: `-${pos.sx}px -${pos.sy}px`, backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px` }} />
+                     );
+                   })}
+                   <div className={`absolute inset-0 border-2 ${stampPreviewValid ? 'border-cyan-300/70' : 'border-red-400/70'}`} />
+                </div>
+             )}
+
+             {/* Object Preview */}
+             {activeTool === 'object' && activeObject && hoverInfo && (tilesetLoaded || activeObject.imagePath) && objectPreviewBounds && (
+                <div className="absolute pointer-events-none" style={{ left: objectPreviewBounds.left, top: objectPreviewBounds.top, width: objectPreviewBounds.width, height: objectPreviewBounds.height, opacity: objectPreviewValid ? 0.7 : 0.4 }}>
+                   <div className="absolute inset-0" style={{ backgroundImage: `url(${activeObject.imagePath ? resolveAssetPath(activeObject.imagePath) : tilesetUrl})`, backgroundPosition: activeObject.imagePath ? `0px ${activeObject.anchor === 'bottom-left' ? Math.max(0, objectPreviewBounds.height - (activeObject.pixelHeight ?? activeObject.tileHeight * tileSize)) : 0}px` : `-${activeObject.tileX * tileSize}px -${activeObject.tileY * tileSize}px`, backgroundSize: activeObject.imagePath ? `${(activeObject.pixelWidth ?? activeObject.tileWidth * tileSize)}px ${(activeObject.pixelHeight ?? activeObject.tileHeight * tileSize)}px` : `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`, backgroundRepeat: 'no-repeat' }} />
+                   <div className={`absolute inset-0 border-2 ${objectPreviewValid ? 'border-emerald-300/70' : 'border-red-400/70'}`} />
+                </div>
+             )}
+
+             {/* Selection Bounds */}
+             {selectionBounds && (
+                <div className="absolute pointer-events-none border-2 border-cyan-400/80 bg-cyan-400/10" style={{ left: selectionBounds.minCol * tileSize, top: selectionBounds.minRow * tileSize, width: (selectionBounds.maxCol - selectionBounds.minCol + 1) * tileSize, height: (selectionBounds.maxRow - selectionBounds.minRow + 1) * tileSize }} />
+             )}
+          </div>
+          
+           {/* Hover Info Overlay - Floating in Canvas Area */}
+           <div className="fixed bottom-4 right-4 bg-black/80 text-[#f6e2b0] px-3 py-1.5 rounded-md pointer-events-none z-50 text-[10px] border border-[#5a4030] shadow shadow-black/50 font-mono">
+              {hoverInfo
+                ? `X ${hoverInfo.col} Y ${hoverInfo.row} | ${activeLayerIndex === 0 ? 'Base' : 'Overlay'} | Tool ${activeToolLabel}`
+                : `Hover to inspect | ${activeLayerIndex === 0 ? 'Base' : 'Overlay'} | ${activeToolLabel}`}
+           </div>
+        </div>
+    );
+  };
+
+  return (
+    <div className="w-screen h-screen overflow-hidden bg-[#fdf6d8] flex items-center justify-center font-display">
+      <div 
+        className="relative select-none w-full h-full p-6 transition-all duration-300" // Made full width/height with padding
+        style={{
+          display: 'grid',
+          // Flexible columns: Sidebars take content width, Main takes remaining
+          gridTemplateColumns: 'min-content 1fr min-content', 
+          // Flexible rows: Header/Footer take content height, Main takes remaining
+          gridTemplateRows: 'auto 1fr auto',
+          gridTemplateAreas: `
+            "sidebar-left header header"
+            "sidebar-left main sidebar-right"
+            "sidebar-left footer sidebar-right"
+          `,
+          gap: '12px', // Kept gap for separation
+          imageRendering: 'pixelated',
+        }}
+      >
+        {/* --------------------------------------------------------------------------
+            Zone: Sidebar Left (Tiles)
+            Area: sidebar-left
+            Responsive Width: min-content (based on children)
+           -------------------------------------------------------------------------- */}
+        <div style={{ gridArea: 'sidebar-left' }} className="relative h-full pt-8 min-w-[160px]">
+            {/* Hanging Sign - Positioned absolutely on top of the frame */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 pointer-events-none" style={{ marginTop: '-8px' }}>
+                 <HangingSign text="TILES" scale={0.9} />
             </div>
-          )}
-        </div>
-
-        <button
-          onClick={exportMap}
-          className="button mt-3 w-full font-display text-lg tracking-wide"
-        >
-          <span>📜 Export Map</span>
-        </button>
-      </div>
-
-      {/* Main Area: Map Editor Canvas - Stardew Valley Parchment Style */}
-      <div className="flex-grow overflow-auto p-2 bg-[#e8d4b0] relative">
-        <div className="mb-2 px-3 py-2 border-2 border-[#caa26a] bg-[#3b2a21] rounded-md shadow-[0_3px_0_#2a1c15]">
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="font-display text-[11px] text-[#f6e2b0] tracking-wide">Mode</span>
-            {MODE_PRESETS.map((mode) => (
-              <button
-                key={`mode-${mode.id}`}
-                onClick={() => applyMode(mode.id)}
-                className={`px-3 py-1 border-2 rounded-md font-display text-[11px] tracking-wide ${
-                  activeMode === mode.id
-                    ? 'bg-[#a8683a] border-[#f2d58a] text-[#fff2c4] shadow-[inset_0_0_0_2px_rgba(0,0,0,0.25)]'
-                    : 'bg-[#5a3a2a] border-[#b88d5e] text-[#f3e2b5] hover:bg-[#6a452f]'
-                }`}
-              >
-                {mode.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 mb-2 text-xs text-gray-300">
-          <div className="flex items-center gap-1">
-            {[
-              { id: 'brush', label: 'B', icon: '/ai-town/assets/ui/icons/brush.png' },
-              { id: 'eraser', label: 'E', icon: '/ai-town/assets/ui/icons/eraser.png' },
-              { id: 'eyedropper', label: 'I', icon: '/ai-town/assets/ui/icons/eyedropper.png' },
-              { id: 'stamp', label: 'S', icon: '/ai-town/assets/ui/icons/stamp.png' },
-              { id: 'object', label: 'O', icon: '/ai-town/assets/ui/icons/object.png' },
-            ].map((tool) => (
-              <button
-                key={tool.id}
-                onClick={() => {
-                  if (tool.id === 'stamp') applyMode('prefabs');
-                  else if (tool.id === 'object') applyMode('objects');
-                  else activateTileTool(tool.id as any);
-                }}
-                className={`relative w-10 h-10 border-2 rounded active:translate-y-[2px] transition-transform ${
-                  (tool.id === 'stamp' && activeMode === 'prefabs') ||
-                  (tool.id === 'object' && activeMode === 'objects') ||
-                  activeTool === tool.id
-                    ? 'bg-[#f6e2b0] border-[#ffd93d] shadow-[0_0_10px_#ffd93d]'
-                    : 'bg-[#8b6b4a] border-t-[#a88b6a] border-l-[#a88b6a] border-b-[#5a4030] border-r-[#5a4030] hover:bg-[#9c7a5b]'
-                }`}
-                title={`${tool.id.charAt(0).toUpperCase() + tool.id.slice(1)} (${tool.label})`}
-              >
-                <img
-                  src={tool.icon}
-                  alt={tool.id}
-                  className="w-8 h-8 mx-auto rendering-pixelated"
-                />
-                <span className="absolute bottom-0 right-1 text-[10px] font-bold text-[#4a3728] shadow-white drop-shadow-[0_1px_0_rgba(255,255,255,0.5)]">
-                  {tool.label}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-1 ml-2 bg-[#3b2a21] p-1 rounded border border-[#5a4030]">
-            <span className="text-[#f6e2b0] text-[10px] uppercase font-bold px-1">Layer</span>
-            <button
-              onClick={() => setActiveLayerIndex(0)}
-              className={`px-2 py-0.5 text-[10px] border-2 rounded ${
-                activeLayerIndex === 0
-                  ? 'bg-[#8b6b4a] border-[#ffd93d] text-[#fff2c4] shadow-[0_0_4px_#ffd93d]'
-                  : 'bg-[#5a4030] border-[#6d4c30] text-[#a88b6a] hover:border-[#8b6b4a]'
-              }`}
-            >
-              Base
-            </button>
-            <button
-              onClick={() => setActiveLayerIndex(1)}
-              className={`px-2 py-0.5 text-[10px] border-2 rounded ${
-                activeLayerIndex === 1
-                  ? 'bg-[#8b6b4a] border-[#ffd93d] text-[#fff2c4] shadow-[0_0_4px_#ffd93d]'
-                  : 'bg-[#5a4030] border-[#6d4c30] text-[#a88b6a] hover:border-[#8b6b4a]'
-              }`}
-            >
-              Overlay
-            </button>
-          </div>
-          <div className="ml-auto text-[#f6e2b0]/60 text-[10px]">
-            Map: {MAP_WIDTH}x{MAP_HEIGHT} tiles | Layers: {bgLayers.length} BG + 1 Collision
-          </div>
-        </div>
-        <div className="mb-2 text-xs text-gray-500">
-          {hoverInfo
-            ? `X ${hoverInfo.col}  Y ${hoverInfo.row}  |  Tile ${hoverInfo.tileId}  |  Tile Layer ${
-                hoverInfo.tileLayerIndex === 0
-                  ? 'Base'
-                  : hoverInfo.tileLayerIndex === 1
-                  ? 'Overlay'
-                  : 'None'
-              }  |  Collision ${hoverInfo.collisionValue}  |  Active Layer ${
-                activeLayerIndex === 0 ? 'Base' : 'Overlay'
-              }  |  Tool ${activeToolLabel}`
-            : `Hover a tile to inspect | Active Layer ${
-                activeLayerIndex === 0 ? 'Base' : 'Overlay'
-              } | Tool ${activeToolLabel} | Right click to erase/remove`}
-        </div>
-        <div
-          className="relative inline-block"
-          style={{ width: mapPixelWidth, height: mapPixelHeight }}
-          onContextMenu={(event) => event.preventDefault()}
-          onPointerLeave={() => setHoverInfo(null)}
-        >
-          <div
-            className="absolute inset-0 bg-[#d4c4a0] border-2 border-[#8b6b4a] shadow-xl rounded"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${MAP_WIDTH}, ${tileSize}px)`,
-            }}
-          >
-            {/* Render each cell */}
-            {Array.from({ length: MAP_HEIGHT }).map((_, rIndex) =>
-              Array.from({ length: MAP_WIDTH }).map((_, cIndex) => {
-                const hasTile = bgLayers.some((layer) => (layer[cIndex]?.[rIndex] ?? -1) >= 0);
-                return (
-                  <div
-                    key={`${rIndex}-${cIndex}`}
-                    onPointerDown={(event) => handlePointerDown(event, rIndex, cIndex)}
-                    onPointerEnter={() => handlePointerEnter(rIndex, cIndex)}
-                    className={`border hover:border-[#ffd93d] hover:shadow-[0_0_8px_rgba(255,217,61,0.5)] cursor-crosshair relative transition-all duration-75 ${
-                      hasTile ? 'border-[#8b6b4a]/20' : 'border-[#8b6b4a]/40'
-                    }`}
-                    style={{
-                      width: tileSize,
-                      height: tileSize,
-                    }}
-                  >
-                    {/* Render all BG layers in order */}
-                    {bgLayers.map((layer, layerIndex) => {
-                      const tileId = layer[cIndex]?.[rIndex] ?? -1;
-                      if (tileId < 0 || !tilesetLoaded) return null;
-                      const pos = getTilePos(tileId);
-                      return (
-                        <div
-                          key={`layer-${layerIndex}`}
-                          className="absolute inset-0"
-                          style={{
-                            backgroundImage: `url(${tilesetUrl})`,
-                            backgroundPosition: `-${pos.sx}px -${pos.sy}px`,
-                            backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
-                          }}
-                        />
-                      );
-                    })}
+            
+            <StardewFrame className="w-full h-full flex flex-col pt-8 pb-4 px-2" style={{ borderWidth: '12px' }}>
+               <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-2">
+                  {/* Tileset Selector */}
+                  <div className="mb-2">
+                    <select
+                      value={tileset.id}
+                      onChange={(event) => handleTilesetChange(event.target.value)}
+                      className="w-full bg-[#5a4030] border-2 border-[#6d4c30] text-[9px] px-1 py-1 rounded text-[#f3e2b5] font-display uppercase tracking-wide opacity-80 hover:opacity-100 transition-opacity"
+                    >
+                      {tilesetOptions.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                );
-              })
-            )}
-          </div>
 
-          {placedObjectsSorted.length > 0 && (
-            <div className="absolute inset-0 pointer-events-none">
-              {placedObjectsSorted.map((placement) => {
-                const objectDef = objectsById.get(placement.objectId);
-                if (!objectDef) return null;
-                const bounds = getObjectPixelBounds(objectDef, placement);
-                const objectImageUrl = objectDef.imagePath ? resolveAssetPath(objectDef.imagePath) : tilesetUrl;
-                const objectPixelWidth = objectDef.pixelWidth ?? objectDef.tileWidth * tileSize;
-                const objectPixelHeight = objectDef.pixelHeight ?? objectDef.tileHeight * tileSize;
-                const objectOffsetY =
-                  objectDef.imagePath && objectDef.anchor === 'bottom-left'
-                    ? Math.max(0, bounds.height - objectPixelHeight)
-                    : 0;
-                return (
-                  <div
-                    key={placement.id}
-                    className="absolute"
-                    style={{
-                      left: bounds.left,
-                      top: bounds.top,
-                      width: bounds.width,
-                      height: bounds.height,
-                      backgroundImage: `url(${objectImageUrl})`,
-                      backgroundPosition: objectDef.imagePath
-                        ? `0px ${objectOffsetY}px`
-                        : `-${objectDef.tileX * tileSize}px -${objectDef.tileY * tileSize}px`,
-                      backgroundSize: objectDef.imagePath
-                        ? `${objectPixelWidth}px ${objectPixelHeight}px`
-                        : `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
-                      backgroundRepeat: 'no-repeat',
-                    }}
-                  />
-                );
-              })}
-            </div>
-          )}
-
-          {showAnimatedSprites && (
-            <div className="absolute inset-0 pointer-events-none">
-              <Stage
-                width={mapPixelWidth}
-                height={mapPixelHeight}
-                options={{ backgroundAlpha: 0, antialias: false }}
-              >
-                <PixiAnimatedSpritesLayer sprites={animatedSprites} />
-              </Stage>
-            </div>
-          )}
-
-          {showCollision && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${MAP_WIDTH}, ${tileSize}px)`,
-              }}
-            >
-              {Array.from({ length: MAP_HEIGHT }).map((_, rIndex) =>
-                Array.from({ length: MAP_WIDTH }).map((_, cIndex) => {
-                  const collisionValue = collisionLayer[cIndex]?.[rIndex] ?? -1;
-                  const overlayClass =
-                    collisionValue === COLLISION_WALKABLE
-                      ? 'bg-green-500/30'
-                      : collisionValue === COLLISION_BLOCKED
-                      ? 'bg-red-500/30'
-                      : collisionValue !== -1
-                      ? 'bg-yellow-500/30'
-                      : '';
-                  return (
-                    <div
-                      key={`collision-${rIndex}-${cIndex}`}
-                      className={overlayClass}
-                      style={{ width: tileSize, height: tileSize }}
-                    />
-                  );
-                })
-              )}
-            </div>
-          )}
-          {activeTool === 'stamp' && activeStamp && hoverInfo && transformedStampSize && tilesetLoaded && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: hoverInfo.col * tileSize,
-                top: hoverInfo.row * tileSize,
-                width: transformedStampSize.width * tileSize,
-                height: transformedStampSize.height * tileSize,
-                opacity: stampPreviewValid ? 0.7 : 0.4,
-              }}
-            >
-              {stampPreviewTiles.map((tile, index) => {
-                const pos = getTilePos(tile.tileId);
-                return (
-                  <div
-                    key={`stamp-preview-${index}`}
-                    className="absolute"
-                    style={{
-                      left: tile.x * tileSize,
-                      top: tile.y * tileSize,
-                      width: tileSize,
-                      height: tileSize,
-                      backgroundImage: `url(${tilesetUrl})`,
-                      backgroundPosition: `-${pos.sx}px -${pos.sy}px`,
-                      backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
-                    }}
-                  />
-                );
-              })}
-              <div
-                className={`absolute inset-0 border-2 ${
-                  stampPreviewValid ? 'border-cyan-300/70' : 'border-red-400/70'
-                }`}
-              />
-            </div>
-          )}
-          {activeTool === 'object' && activeObject && hoverInfo && (tilesetLoaded || activeObject.imagePath) && objectPreviewBounds && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: objectPreviewBounds.left,
-                top: objectPreviewBounds.top,
-                width: objectPreviewBounds.width,
-                height: objectPreviewBounds.height,
-                opacity: objectPreviewValid ? 0.7 : 0.4,
-              }}
-            >
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage: `url(${activeObject.imagePath ? resolveAssetPath(activeObject.imagePath) : tilesetUrl})`,
-                  backgroundPosition: activeObject.imagePath
-                    ? `0px ${
-                        activeObject.anchor === 'bottom-left'
-                          ? Math.max(
-                              0,
-                              objectPreviewBounds.height -
-                                (activeObject.pixelHeight ?? activeObject.tileHeight * tileSize),
-                            )
-                          : 0
-                      }px`
-                    : `-${activeObject.tileX * tileSize}px -${activeObject.tileY * tileSize}px`,
-                  backgroundSize: activeObject.imagePath
-                    ? `${(activeObject.pixelWidth ?? activeObject.tileWidth * tileSize)}px ${(
-                        activeObject.pixelHeight ?? activeObject.tileHeight * tileSize
-                      )}px`
-                    : `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
-                  backgroundRepeat: 'no-repeat',
-                }}
-              />
-              <div
-                className={`absolute inset-0 border-2 ${
-                  objectPreviewValid ? 'border-emerald-300/70' : 'border-red-400/70'
-                }`}
-              />
-            </div>
-          )}
-          {selectionBounds && (
-            <div
-              className="absolute pointer-events-none border-2 border-cyan-400/80 bg-cyan-400/10"
-              style={{
-                left: selectionBounds.minCol * tileSize,
-                top: selectionBounds.minRow * tileSize,
-                width: (selectionBounds.maxCol - selectionBounds.minCol + 1) * tileSize,
-                height: (selectionBounds.maxRow - selectionBounds.minRow + 1) * tileSize,
-              }}
-            />
-          )}
+                  {/* Mode Content */}
+                  {activeMode === 'prefabs' ? (
+                     <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                           <button onClick={() => setStampCaptureMode(p => !p)} className={`text-[9px] px-2 py-0.5 border-2 text-[#f3e2b5] rounded uppercase ${stampCaptureMode ? 'bg-[#9c2a2a] border-[#e8d4b0]' : 'bg-[#3b2a21] border-[#6d4c30] hover:bg-[#5a4030]'}`}>
+                             {stampCaptureMode ? 'Creating...' : 'New Stamp'}
+                           </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                         {tilesetStampsForSet.map(stamp => (
+                            <button 
+                              key={stamp.id} 
+                              onClick={() => { setActiveStampId(stamp.id); applyMode('prefabs'); }}
+                              className={`p-1 bg-[#3b2a21] rounded border-2 text-center group relative ${activeStampId === stamp.id ? 'border-[#ffd93d]' : 'border-[#5a4030] hover:border-[#8b6b4a]'}`}
+                            >
+                               <span className="text-[8px] text-[#f3e2b5] block truncate">{stamp.name}</span>
+                               <div className="absolute top-0 right-0 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <span className="text-[8px] text-red-300 cursor-pointer" onClick={(e) => { e.stopPropagation(); removeStamp(stamp.id); }}>x</span>
+                               </div>
+                            </button>
+                         ))}
+                        </div>
+                    </div>
+                  ) : activeMode === 'objects' ? (
+                    <div className="flex flex-col gap-2">
+                         <div className="flex flex-wrap gap-1 mb-2 justify-center">
+                           <button onClick={() => setObjectCaptureMode(p => !p)} className={`text-[9px] px-2 py-0.5 border-2 text-[#f3e2b5] rounded uppercase ${objectCaptureMode ? 'bg-[#9c2a2a] border-[#e8d4b0]' : 'bg-[#3b2a21] border-[#6d4c30] hover:bg-[#5a4030]'}`}>
+                             {objectCaptureMode ? 'Creating...' : 'New Object'}
+                           </button>
+                        </div>
+                         <div className="grid grid-cols-2 gap-2">
+                            {tilesetObjectsForSet.map(obj => {
+                               const preview = getObjectPreviewData(obj);
+                               return (
+                                 <div key={obj.id} 
+                                      onClick={() => selectObjectId(obj.id)}
+                                      className={`aspect-square bg-[#3b2a21] rounded border-2 relative cursor-pointer group ${activeObjectId === obj.id ? 'border-[#ffd93d] shadow-[0_0_8px_#ffd93d]' : 'border-[#5a4030] hover:border-[#8b6b4a]'}`}
+                                 >
+                                     <div 
+                                        className="absolute inset-2 bg-no-repeat bg-center"
+                                        style={{
+                                            backgroundImage: `url(${preview.imageUrl})`,
+                                            backgroundPosition: preview.backgroundPosition,
+                                            backgroundSize: preview.backgroundSize,
+                                            transform: 'scale(0.8)'
+                                        }}
+                                     />
+                                     <span className="absolute bottom-0 w-full text-center text-[8px] bg-black/50 text-white truncate px-0.5">{obj.name}</span>
+                                 </div>
+                               );
+                            })}
+                         </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-[1px]" style={{ gridTemplateColumns: `repeat(3, 1fr)` }}>
+                        {paletteTileIds.map(tileId => {
+                           const { sx, sy } = getTilePos(tileId);
+                           const isSelected = selectedTileId === tileId;
+                            return (
+                              <div
+                                key={tileId}
+                                onClick={() => selectTileId(tileId)}
+                                className={`cursor-pointer relative hover:brightness-110 active:scale-95 transition-transform ${isSelected ? 'z-10 ring-2 ring-[#ffd93d]' : ''}`}
+                                style={{
+                                  width: '100%',
+                                  paddingBottom: '100%',
+                                }}
+                              >
+                                 <div className="absolute inset-0" style={{
+                                  backgroundImage: `url(${tilesetUrl})`,
+                                  backgroundPosition: `-${sx}px -${sy}px`,
+                                  backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                                  imageRendering: 'pixelated'
+                                 }} />
+                              </div>
+                            );
+                        })}
+                     </div>
+                  )}
+               </div>
+            </StardewFrame>
         </div>
 
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-auto">
-          <div className="flex flex-col items-center gap-1 px-4 py-2 border-4 border-[#6d4c30] bg-[#8b6b4a] rounded-lg shadow-[0_4px_0_#3b2a21,0_8px_10px_rgba(0,0,0,0.5)]">
-            <div className="bg-[#3b2a21] px-3 py-0.5 rounded-full border border-[#5a4030] -mt-4 mb-1">
-              <span className="font-display text-[10px] text-[#ffd93d] tracking-widest uppercase drop-shadow-[0_1px_0_rgba(0,0,0,1)]">
-                {activeMode === 'objects' ? 'Objects' : 'Startups'}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {activeMode === 'objects'
-                ? quickbarObjectSlots.map((objectId, index) => {
-                    const objectDef = objectId ? objectsById.get(objectId) : null;
-                    const preview = objectDef ? getObjectPreviewData(objectDef) : null;
-                    
-                    if (!objectId || !preview) {
-                      return (
-                        <div
-                          key={`quickbar-object-empty-${index}`}
-                          className="relative w-10 h-10 border-2 border-[#5a4030] bg-[#3b2a21] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] rounded-sm"
-                        >
-                          <span className="absolute -top-2 left-0.5 text-[8px] text-[#a88b6a] font-bold">{index + 1}</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <button
-                        key={`quickbar-object-${objectId}`}
-                        onClick={() => selectObjectId(objectId)}
-                        className={`relative w-10 h-10 border-2 rounded-sm active:translate-y-[1px] transition-all ${
-                          activeObjectId === objectId
-                            ? 'border-[#ffd93d] bg-[#f6e2b0] shadow-[0_0_8px_#ffd93d]'
-                            : 'border-[#6d4c30] bg-[#3b2a21] hover:border-[#8b6b4a]'
-                        }`}
-                      >
-                         <span className="absolute -top-2 left-0.5 text-[8px] text-[#f6e2b0] font-bold shadow-black drop-shadow-[0_1px_0_rgba(0,0,0,0.8)] z-10">{index + 1}</span>
-                        <div 
-                          className="w-full h-full"
-                          style={{
-                            backgroundImage: `url(${preview.imageUrl})`,
-                            backgroundPosition: preview.backgroundPosition,
-                            backgroundSize: preview.backgroundSize,
-                            backgroundRepeat: 'no-repeat',
-                          }} 
-                        />
-                      </button>
-                    );
-                  })
-                : quickbarTileSlots.map((tileId, index) => {
-                    if (tileId === null || tileId === undefined) {
-                      return (
-                         <div
-                          key={`quickbar-tile-empty-${index}`}
-                          className="relative w-10 h-10 border-2 border-[#5a4030] bg-[#3b2a21] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] rounded-sm"
-                        >
-                          <span className="absolute -top-2 left-0.5 text-[8px] text-[#a88b6a] font-bold">{index + 1}</span>
-                        </div>
-                      );
-                    }
-                    const pos = getTilePos(tileId);
-                    return (
-                      <button
-                        key={`quickbar-tile-${tileId}`}
-                        onClick={() => selectTileId(tileId)}
-                        className={`relative w-10 h-10 border-2 rounded-sm active:translate-y-[1px] transition-all ${
-                          selectedTileId === tileId
-                             ? 'border-[#ffd93d] bg-[#f6e2b0] shadow-[0_0_8px_#ffd93d]'
-                            : 'border-[#6d4c30] bg-[#3b2a21] hover:border-[#8b6b4a]'
-                        }`}
-                      >
-                        <span className="absolute -top-2 left-0.5 text-[8px] text-[#f6e2b0] font-bold shadow-black drop-shadow-[0_1px_0_rgba(0,0,0,0.8)] z-10">{index + 1}</span>
-                        <div
-                          className="w-full h-full rendering-pixelated"
-                          style={{
-                            backgroundImage: `url(${tilesetUrl})`,
-                            backgroundPosition: `-${pos.sx}px -${pos.sy}px`,
-                            backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
-                          }}
-                        />
-                      </button>
-                    );
-                  })}
-            </div>
-          </div>
+        {/* --------------------------------------------------------------------------
+            Zone: Header (Tabs + Tools)
+            Area: header
+            Responsive Height: auto (min 56px)
+           -------------------------------------------------------------------------- */}
+        <div style={{ gridArea: 'header' }} className="flex h-14 gap-[12px]"> {/* Fixed height h-14 (56px) often good for headers, but flex helps */}
+             {/* Header Left: Tabs (Fills center) */}
+             <div className="flex-1 h-full"> 
+                 <StardewFrame className="flex items-center px-4 h-full" style={{ borderWidth: '12px' }}>
+                     <div className="flex items-center gap-1 justify-between w-full"> {/* justify-between to spread tabs if widely available */}
+                         {[
+                           { label: 'TERRAIN', mode: 'terrain' as EditorMode, category: 'all' as TileCategoryFilter },
+                           { label: 'PATHS', mode: 'paths' as EditorMode, category: 'paths' as TileCategoryFilter },
+                           { label: 'PROPS', mode: 'prefabs' as EditorMode, category: null },
+                           { label: 'BUILDINGS', mode: 'objects' as EditorMode, category: null }
+                         ].map((tab) => (
+                            <div key={tab.label} className="relative flex-1 flex justify-center">
+                                <StardewTab
+                                  label={tab.label}
+                                  isActive={activeMode === tab.mode}
+                                  onClick={() => {
+                                     applyMode(tab.mode);
+                                     if (tab.category) setActiveCategory(tab.category);
+                                  }}
+                                  className="flex-shrink-0 scale-90 origin-center"
+                                />
+                            </div>
+                         ))}
+                     </div>
+                 </StardewFrame>
+             </div>
+
+             {/* Header Right: Tools (Matches Sidebar Right width effectively) */}
+             <div className="h-full pl-1 w-[140px]"> {/* Kept 140px min width for tools to ensure they fit */}
+                 <StardewFrame className="flex items-center justify-center px-2 h-full w-full" style={{ borderWidth: '12px' }}>
+                     <div className="flex items-center gap-1.5 justify-around w-full">
+                         {[
+                          { id: 'brush', icon: '/ai-town/assets/ui/icons/brush.png' },
+                          { id: 'eraser', icon: '/ai-town/assets/ui/icons/eraser.png' },
+                          { id: 'stamp', icon: '/ai-town/assets/ui/icons/stamp.png' },
+                        ].map((tool) => (
+                          <button
+                            key={tool.id}
+                            onClick={() => {
+                              if (tool.id === 'stamp') applyMode('prefabs');
+                              else activateTileTool(tool.id as any);
+                            }}
+                            className={`relative w-8 h-8 flex items-center justify-center transition-all duration-75 rounded-sm ${
+                              (tool.id === 'stamp' && activeMode === 'prefabs') ||
+                              activeTool === tool.id
+                                ? 'bg-[#e8d4b0] border-2 border-[#ffd93d] shadow-[0_0_8px_rgba(255,217,61,0.5)] scale-110 z-10'
+                                : 'bg-[#8b6b4a] border-2 border-[#5a3a2a] hover:bg-[#d4b078] hover:-translate-y-0.5'
+                            }`}
+                            title={tool.id.toUpperCase()}
+                          >
+                            <img
+                              src={tool.icon}
+                              alt={tool.id}
+                              className="w-5 h-5 rendering-pixelated drop-shadow-sm"
+                            />
+                          </button>
+                        ))}
+                     </div>
+                 </StardewFrame>
+             </div>
         </div>
+
+        {/* --------------------------------------------------------------------------
+            Zone: Main (Canvas)
+            Area: main
+           -------------------------------------------------------------------------- */}
+        <div style={{ gridArea: 'main' }} className="relative flex items-center justify-center min-h-0 min-w-0"> {/* min-h/w-0 prevents grid blowout */}
+            <div className="border-[6px] border-[#6d4c30] bg-[#d4c4a0] shadow-[inset_0_0_20px_rgba(0,0,0,0.2)] rounded overflow-hidden flex ring-4 ring-[#8b6b4a] w-full h-full"> {/* Full size of grid area */}
+                {renderCanvas()}
+            </div>
+        </div>
+
+        {/* --------------------------------------------------------------------------
+            Zone: Footer (Quickbar)
+            Area: footer
+            Responsive Height: auto
+           -------------------------------------------------------------------------- */}
+        <div style={{ gridArea: 'footer' }} className="flex justify-center h-16">
+             <div className="w-full max-w-lg h-full"> {/* Allow it to grow max-w-lg */}
+                <StardewFrame className="w-full h-full flex items-center justify-center px-4" style={{ borderWidth: '12px' }}>
+                     <div className="flex gap-1.5 align-middle">
+                        {/* Render Quickbar Slots */}
+                        {Array.from({ length: 8 }).map((_, index) => {
+                           let content = null;
+                        const objectId = activeMode === 'objects' ? quickbarObjectSlots[index] : null;
+                        const tileId = activeMode !== 'objects' ? quickbarTileSlots[index] : null;
+                        const isActive = activeMode === 'objects' ? activeObjectId === objectId : selectedTileId === tileId && tileId !== null;
+
+                           if (activeMode === 'objects' && objectId) {
+                                   const objDef = objectsById.get(objectId);
+                                   if (objDef) {
+                                       const preview = getObjectPreviewData(objDef);
+                                       content = (
+                                           <div 
+                                                className="w-full h-full bg-no-repeat bg-center"
+                                                style={{
+                                                    backgroundImage: `url(${preview.imageUrl})`,
+                                                    backgroundPosition: preview.backgroundPosition,
+                                                    backgroundSize: preview.backgroundSize,
+                                                    transform: 'scale(0.8)'
+                                                }}
+                                            />
+                                       );
+                                   }
+                           } else if (activeMode !== 'objects' && tileId !== null && tileId !== undefined) {
+                                   const pos = getTilePos(tileId);
+                                   content = (
+                                        <div
+                                            className="w-full h-full rendering-pixelated"
+                                            style={{
+                                                backgroundImage: `url(${tilesetUrl})`,
+                                                backgroundPosition: `-${pos.sx}px -${pos.sy}px`,
+                                                backgroundSize: `${tilesetCols * tileSize}px ${tilesetRows * tileSize}px`,
+                                            }}
+                                        />
+                                   );
+                           }
+
+                           return (
+                              <button
+                                  key={`qb-${index}`}
+                                  onClick={() => {
+                                    if(activeMode === 'objects' && objectId) selectObjectId(objectId);
+                                    if(activeMode !== 'objects' && tileId !== null) selectTileId(tileId);
+                                  }}
+                                  className={`relative w-10 h-10 border-2 rounded-sm active:scale-95 transition-all group overflow-hidden ${
+                                      isActive
+                                      ? 'border-[#ffd93d] bg-[#fdf6d8] shadow-[0_0_8px_#ffd93d] z-10'
+                                      : 'border-[#8b6b4a] bg-[#f9eaca] hover:border-[#a88b6a]'
+                                  }`}
+                              >
+                                  <span className={`absolute -top-1 -left-1 w-3 h-3 flex items-center justify-center text-[7px] font-bold border rounded-full z-20 ${
+                                    isActive ? 'bg-[#ffd93d] text-[#5a4030] border-[#e8b030]' : 'bg-[#8b6b4a] text-[#f6e2b0] border-[#5a4030]' 
+                                  }`}>{index + 1}</span>
+                                  
+                                  {!content && (
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+                                        <div className="w-6 h-6 rounded-full border-2 border-[#d4b078]" />
+                                    </div>
+                                  )}
+                                  
+                                  {content}
+                              </button>
+                           );
+                        })}
+                     </div>
+                </StardewFrame>
+             </div>
+        </div>
+
+        {/* --------------------------------------------------------------------------
+            Zone: Sidebar Right (Settings)
+            Area: sidebar-right
+            Responsive Width: min-content or fixed
+           -------------------------------------------------------------------------- */}
+        <div style={{ gridArea: 'sidebar-right', alignSelf: 'end' }} className="flex flex-col justify-end h-full pl-1 w-[140px]"> {/* Adjusted to fixed width to ensure consistency in alignment for tools part */}
+
+            <StardewFrame className="p-3 w-full" style={{ borderWidth: '12px' }}>
+                <div className="flex flex-col gap-2">
+                   <label className="flex items-center gap-2 cursor-pointer group hover:brightness-110 transition-all">
+                      <StardewCheckbox 
+                        label="GRID" 
+                        checked={showCollision} 
+                        onChange={setShowCollision}
+                        className="scale-90 origin-left"
+                      />
+                   </label>
+
+                   <label className="flex items-center gap-2 cursor-pointer group hover:brightness-110 transition-all">
+                      <StardewCheckbox 
+                        label="OBJ" 
+                        checked={activeMode === 'objects'} 
+                        onChange={() => applyMode('objects')}
+                        className="scale-90 origin-left"
+                      />
+                   </label>
+
+                   <label className="flex items-center gap-2 cursor-pointer group hover:brightness-110 transition-all">
+                       <StardewCheckbox 
+                        label="BGM" 
+                        checked={true} 
+                        onChange={() => {}}
+                        className="scale-90 origin-left"
+                      />
+                   </label>
+                   
+                   <label className="flex items-center gap-2 cursor-pointer group hover:brightness-110 transition-all">
+                       <StardewCheckbox 
+                        label="SFX" 
+                        checked={false} 
+                        onChange={() => {}}
+                        className="opacity-50 scale-90 origin-left"
+                      />
+                   </label>
+                </div>
+            </StardewFrame>
+             <div className="mt-1 text-center">
+                 <div className="text-[#8b6b4a] text-[8px] font-display font-bold">{MAP_WIDTH}x{MAP_HEIGHT}</div>
+             </div>
+        </div>
+
       </div>
     </div>
   );

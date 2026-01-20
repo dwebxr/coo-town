@@ -44,6 +44,7 @@ export default function Home() {
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [showVisualTest, setShowVisualTest] = useState(false);
 
   useEffect(() => {
     // Simple way to access editor: add ?editor=true to URL
@@ -51,7 +52,15 @@ export default function Home() {
     if (params.get('editor') === 'true') {
       setShowEditor(true);
     }
+    // Visual layout test: ?visual-test=true
+    if (params.get('visual-test') === 'true') {
+      setShowVisualTest(true);
+    }
   }, []);
+
+  if (showVisualTest) {
+    return <MapEditor />;
+  }
 
   if (showEditor) {
     return <MapEditor />;

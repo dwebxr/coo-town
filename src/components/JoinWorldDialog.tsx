@@ -35,17 +35,23 @@ export default function JoinWorldDialog({ isOpen, isJoining, onClose, onJoin }: 
   const { characters } = useCharacters();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const customCharacters = useMemo(
+    () => characters.filter((character) => character.isCustom),
+    [characters],
+  );
+  const selectableCharacters = customCharacters.length > 0 ? customCharacters : characters;
+  const isCustomOnly = customCharacters.length > 0;
 
   useEffect(() => {
-    if (characters.length === 0) return;
-    if (!selectedId) {
-      setSelectedId(characters[0].name);
+    if (selectableCharacters.length === 0) return;
+    if (!selectedId || !selectableCharacters.some((character) => character.name === selectedId)) {
+      setSelectedId(selectableCharacters[0].name);
     }
-  }, [characters, selectedId]);
+  }, [selectableCharacters, selectedId]);
 
   const selectedCharacter = useMemo(
-    () => characters.find((character) => character.name === selectedId) ?? null,
-    [characters, selectedId],
+    () => selectableCharacters.find((character) => character.name === selectedId) ?? null,
+    [selectableCharacters, selectedId],
   );
 
   const handleJoin = () => {
@@ -70,6 +76,11 @@ export default function JoinWorldDialog({ isOpen, isJoining, onClose, onJoin }: 
           <div>
             <h2 className="text-3xl font-display">Choose Your Character</h2>
             <p className="text-sm text-white/70 mt-1">Choose a look before you join the world.</p>
+            <p className="text-xs text-white/50 mt-1">
+              {isCustomOnly
+                ? 'Showing your custom characters.'
+                : 'No custom characters yet — showing defaults.'}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -103,7 +114,7 @@ export default function JoinWorldDialog({ isOpen, isJoining, onClose, onJoin }: 
         )}
 
         <CharacterSelectGrid
-          characters={characters}
+          characters={selectableCharacters}
           selectedId={selectedId}
           onSelect={(id) => {
             setSelectedId(id);

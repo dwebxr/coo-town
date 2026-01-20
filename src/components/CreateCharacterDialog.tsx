@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import ReactModal from 'react-modal';
-import { useMutation, useQuery } from 'convex/react';
+import { useMutation, useQuery, useAction } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 const modalStyles = {
@@ -38,97 +38,98 @@ type Props = {
 
 export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
   const [displayName, setDisplayName] = useState('');
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  // Generation state
+  const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedStorageId, setGeneratedStorageId] = useState<string | null>(null);
+  
+  // Existing upload state (kept for "Upload Reference" or manual override if we want, 
+  // but user said "No Upload Existing, just Generate New" for the MAIN flow, 
+  // but we might need to handle the case where we upload a reference image for generation?)
+  // User said: "User can input a prompt ... / OR upload a photo" (for generation reference).
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const generateUploadUrl = useMutation(api.characterSprites.generateUploadUrl);
+  const [error, setError] = useState<string | null>(null);
+
+  const generateCharacter = useAction(api.characterGeneration.generate);
   const createSprite = useMutation(api.characterSprites.create);
   const removeSprite = useMutation(api.characterSprites.remove);
   const mySprites = useQuery(api.characterSprites.listMine) ?? [];
 
+  // Reset state on open
   useEffect(() => {
-    if (!file) {
+    if (isOpen) {
+      setDisplayName('');
+      setPrompt('');
+      setReferenceFile(null);
+      setGeneratedStorageId(null);
       setPreviewUrl(null);
-      setDimensions(null);
-      return;
+      setError(null);
+      setIsGenerating(false);
     }
-    const objectUrl = URL.createObjectURL(file);
-    setPreviewUrl(objectUrl);
-    const img = new Image();
-    img.onload = () => {
-      setDimensions({ width: img.width, height: img.height });
-    };
-    img.onerror = () => {
-      setFileError('Failed to load image.');
-      setDimensions(null);
-    };
-    img.src = objectUrl;
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
+  }, [isOpen]);
 
-  const sizeError = useMemo(() => {
-    if (!dimensions) return null;
-    if (dimensions.width !== REQUIRED_WIDTH || dimensions.height !== REQUIRED_HEIGHT) {
-      return `Expected ${REQUIRED_WIDTH}x${REQUIRED_HEIGHT}px PNG.`;
+  const handleReferenceFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (file) {
+        setReferenceFile(file);
+        // Show preview of reference?
     }
-    return null;
-  }, [dimensions]);
-
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextFile = event.target.files?.[0] ?? null;
-    setFileError(null);
-    if (nextFile && nextFile.type !== 'image/png') {
-      setFileError('Only PNG files are supported.');
-      setFile(null);
-      return;
-    }
-    setFile(nextFile);
   };
 
-  const handleUpload = async () => {
-    if (!file) {
-      setFileError('Choose a PNG sprite sheet first.');
-      return;
+  // Helper to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const generatedPreviewUrl = useQuery(api.characterSprites.getUrl, generatedStorageId ? { storageId: generatedStorageId } : "skip");
+
+  const handleGenerate = async () => {
+    if (!prompt && !referenceFile) {
+        setError("Please enter a prompt or upload a reference photo.");
+        return;
     }
-    if (file.type !== 'image/png') {
-      setFileError('Only PNG files are supported.');
-      return;
-    }
-    if (sizeError) {
-      setFileError(sizeError);
-      return;
-    }
-    setIsUploading(true);
+    setIsGenerating(true);
+    setError(null);
     try {
-      const uploadUrl = await generateUploadUrl();
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!uploadResponse.ok) {
-        throw new Error('Upload failed.');
-      }
-      const { storageId } = await uploadResponse.json();
-      await createSprite({
-        storageId,
-        displayName: displayName.trim() || 'Custom Sprite',
-        frameWidth: FRAME_WIDTH,
-        frameHeight: FRAME_HEIGHT,
-        framesPerDirection: FRAMES_PER_DIRECTION,
-        directions: DIRECTIONS,
-      });
-      setDisplayName('');
-      setFile(null);
-      setFileError(null);
-    } catch (error: any) {
-      setFileError(error?.message ?? 'Failed to upload sprite.');
+        let imageUrl = undefined;
+        if (referenceFile) {
+            imageUrl = await fileToBase64(referenceFile);
+        }
+
+        const result = await generateCharacter({ prompt, image: imageUrl });
+        
+        if (result.storageId) {
+            setGeneratedStorageId(result.storageId);
+        }
+    } catch (e: any) {
+        console.error(e);
+        setError(e.message ?? "Generation failed");
     } finally {
-      setIsUploading(false);
+        setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!generatedStorageId) return;
+    
+    try {
+        await createSprite({
+            storageId: generatedStorageId,
+            displayName: displayName.trim() || 'AI Character',
+            frameWidth: FRAME_WIDTH,
+            frameHeight: FRAME_HEIGHT,
+            framesPerDirection: FRAMES_PER_DIRECTION,
+            directions: DIRECTIONS,
+        });
+        onClose();
+    } catch (e: any) {
+        setError("Failed to save character");
     }
   };
 
@@ -144,94 +145,161 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
       contentLabel="Create Character"
       ariaHideApp={false}
     >
-      <div className="space-y-4">
+      <div className="space-y-4 font-sans text-white">
         <div className="flex items-start justify-between gap-6">
-          <h2 className="text-3xl font-display">Create Character</h2>
+          <h2 className="text-2xl font-bold font-display">Create Character (AI)</h2>
           <button
             onClick={onClose}
-            className="border border-white/30 px-3 py-1 text-xs hover:border-white"
+            className="border border-white/30 px-3 py-1 text-xs hover:border-white text-gray-400 hover:text-white"
           >
             Close
           </button>
         </div>
-        <div className="space-y-2 text-sm text-white/80">
-          <p>Upload a 96x128 PNG sprite sheet (3 frames × 4 directions).</p>
-          <p>Sprites are private to your account but render across worlds.</p>
-        </div>
-        <div className="space-y-3">
-          <label className="text-xs text-white/70">Display name</label>
-          <input
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="My Adventurer"
-            className="w-full bg-gray-900 border border-gray-700 px-3 py-2 text-sm"
-          />
-          <label className="text-xs text-white/70">Sprite sheet (PNG)</label>
-          <input
-            type="file"
-            accept="image/png"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-white/70"
-          />
-          {(fileError || sizeError) && (
-            <p className="text-xs text-red-300">{fileError ?? sizeError}</p>
-          )}
-          {previewUrl && (
-            <div className="flex items-start gap-4">
-              <img
-                src={previewUrl}
-                alt="Sprite preview"
-                className="border border-white/20"
-                style={{ width: REQUIRED_WIDTH * 2, height: REQUIRED_HEIGHT * 2, imageRendering: 'pixelated' }}
-              />
-              <div className="text-xs text-white/60 space-y-1">
-                <p>Size: {dimensions?.width ?? '?'}x{dimensions?.height ?? '?'}</p>
-                <p>Frame: {FRAME_WIDTH}x{FRAME_HEIGHT}</p>
-                <p>Layout: {FRAMES_PER_DIRECTION}x{DIRECTIONS}</p>
-              </div>
+
+        {/* Generation Form */}
+        {!generatedStorageId ? (
+            // ... existing form ...
+            <div className="space-y-4">
+                {/* ... prompt input ... */}
+                <div>
+                     <label className="block text-sm text-gray-400 mb-1">Description (Prompt)</label>
+                     <textarea 
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-emerald-500 outline-none"
+                        rows={3}
+                        placeholder="A futuristic cyber-ninja with a glowing katana..."
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                    />
+                </div>
+                {/* ... image input ... */}
+                <div>
+                     <label className="block text-sm text-gray-400 mb-1">Reference Image (Optional)</label>
+                     <input 
+                         type="file" 
+                         accept="image/*"
+                         className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-800 file:text-white hover:file:bg-gray-700"
+                         onChange={handleReferenceFileChange}
+                     />
+                 </div>
+ 
+                 {error && (
+                     <div className="text-red-400 text-sm bg-red-900/20 p-2 rounded">
+                         {error}
+                     </div>
+                 )}
+ 
+                 <button 
+                     onClick={handleGenerate}
+                     disabled={isGenerating}
+                     className={`w-full font-bold py-2 px-4 rounded transition-all flex items-center justify-center gap-2 ${
+                        isGenerating 
+                            ? 'bg-emerald-800 text-emerald-200 cursor-wait' 
+                            : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                     }`}
+                 >
+                     {isGenerating ? (
+                        <>
+                            <svg className="animate-spin h-5 w-5 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Creation in progress...</span>
+                        </>
+                     ) : (
+                        'Generate Sprite Sheet'
+                     )}
+                 </button>
+                 <p className="text-xs text-center text-gray-500">
+                     AI will generate a full body art, create a sprite sheet, and remove the background inside Nanobanana pipeline.
+                 </p>
             </div>
-          )}
-          <button
-            onClick={handleUpload}
-            disabled={isUploading}
-            className="bg-emerald-500/80 hover:bg-emerald-500 px-4 py-2 text-sm font-bold border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isUploading ? 'Uploading...' : 'Save Character'}
-          </button>
-        </div>
-        <div className="border-t border-white/10 pt-4">
-          <h3 className="text-xl font-display mb-2">Your Characters</h3>
-          {mySprites.length === 0 ? (
-            <p className="text-sm text-white/60">No custom characters yet.</p>
-          ) : (
-            <div className="space-y-2">
+        ) : (
+            // Preview & Save
+            <div className="space-y-4">
+                 <div className="bg-gray-900 border border-gray-700 rounded p-4 flex justify-center min-h-[160px] items-center">
+                    {generatedPreviewUrl ? (
+                         <div className="text-center">
+                            <p className="text-emerald-400 mb-2 font-bold text-sm">Preview Generated Sprite</p>
+                            <img 
+                                src={generatedPreviewUrl}
+                                className="w-24 h-32 mx-auto border border-emerald-500/30 bg-gray-800 object-contain"
+                                style={{ imageRendering: 'pixelated' }}
+                                alt="Generated Sprite"
+                            />
+                             <p className="text-xs text-gray-500 mt-2">Background Removed</p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center p-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-2"></div>
+                            <p className="text-xs text-gray-400">Loading preview...</p>
+                        </div>
+                    )}
+                </div>
+                
+                {/* ... remaining inputs ... */}
+                <div>
+                     <label className="block text-sm text-gray-400 mb-1">Character Name</label>
+                     <input
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="My Character"
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm"
+                     />
+                </div>
+                {/* ... buttons ... */}
+                <div className="flex gap-2">
+                     <button
+                        onClick={() => setGeneratedStorageId(null)} // Back to edit
+                        className="flex-1 border border-gray-600 hover:bg-gray-800 text-white py-2 rounded"
+                     >
+                        Back
+                     </button>
+                     <button
+                        onClick={handleSave}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded"
+                     >
+                        Save Character
+                     </button>
+                </div>
+            </div>
+        )}
+
+
+        {/* List of existing characters */}
+        <div className="border-t border-gray-800 pt-4 mt-6">
+           <h3 className="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Your Characters</h3>
+           <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
               {mySprites.map((sprite) => (
-                <div key={sprite.spriteId} className="flex items-center gap-3">
+                <div key={sprite.spriteId} className="flex items-center gap-3 bg-gray-800/50 p-2 rounded border border-gray-700">
                   <div
-                    className="border border-white/20"
-                    style={{
-                      width: 32,
-                      height: 32,
-                      backgroundImage: sprite.textureUrl ? `url(${sprite.textureUrl})` : undefined,
-                      backgroundPosition: '0px 0px',
-                      backgroundSize: `${FRAME_WIDTH * FRAMES_PER_DIRECTION}px ${FRAME_HEIGHT * DIRECTIONS}px`,
-                      imageRendering: 'pixelated',
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm text-white">{sprite.displayName}</p>
-                    <p className="text-xs text-white/50">{sprite.spriteId}</p>
+                    className="shrink-0 bg-gray-900 w-8 h-8 rounded overflow-hidden relative"
+                  >
+                     <div 
+                        style={{
+                            width: 32,
+                            height: 32,
+                            backgroundImage: sprite.textureUrl ? `url(${sprite.textureUrl})` : undefined,
+                            backgroundPosition: '0px 0px',
+                            backgroundSize: `${FRAME_WIDTH * FRAMES_PER_DIRECTION}px ${FRAME_HEIGHT * DIRECTIONS}px`,
+                            imageRendering: 'pixelated',
+                        }}
+                     />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{sprite.displayName}</p>
                   </div>
                   <button
                     onClick={() => handleRemove(sprite.spriteId)}
-                    className="border border-white/20 px-3 py-1 text-xs hover:border-white"
+                    className="text-xs text-red-400 hover:text-red-300 px-2 py-1"
                   >
                     Delete
                   </button>
                 </div>
               ))}
-            </div>
-          )}
+              {mySprites.length === 0 && (
+                <p className="text-sm text-gray-500 italic">No custom characters created yet.</p>
+              )}
+           </div>
         </div>
       </div>
     </ReactModal>

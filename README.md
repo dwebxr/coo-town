@@ -16,7 +16,6 @@ We're evolving Eliza Town towards an **MMO experience** with more gameplay mecha
 This project is built upon the work of amazing open-source projects:
 
 - **[AI Town](https://github.com/a16z-infra/ai-town)** by a16z-infra - The original foundation for this project (MIT License)
-- **[Liberated Pixel Cup (LPC)](https://lpc.opengameart.org/)** - Art assets (CC-BY-SA 3.0 / GPL 3.0). See [public/assets/lpc/Attribution.txt](./public/assets/lpc/Attribution.txt) for full credits.
 - **[PixiJS](https://pixijs.com/)** - Rendering engine
 - **[Convex](https://convex.dev/)** - Backend platform
 

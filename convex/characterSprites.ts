@@ -37,6 +37,13 @@ export const generateUploadUrl = mutation({
   },
 });
 
+export const getUrl = query({
+  args: { storageId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
 export const list = query({
   handler: async (ctx) => {
     const sprites = await ctx.db.query('characterSprites').collect();

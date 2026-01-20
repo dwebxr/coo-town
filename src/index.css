@@ -212,3 +212,517 @@ p[contenteditable='true']:empty::before {
 .shape-top-left-corner {
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
+
+.map-editor-panel {
+  border-style: solid;
+  border-width: 28px;
+  border-image-source: url(../assets/ui/stardew/wood_frame_9slice.png);
+  border-image-slice: 180 fill;
+  border-image-repeat: stretch;
+  background-color: #d9c29b;
+  background-image: url(../assets/ui/stardew/paper_lining_tileable.png);
+  background-repeat: repeat;
+  background-size: 256px 256px;
+  background-clip: padding-box;
+  image-rendering: pixelated;
+}
+
+.map-editor-frame {
+  border-style: solid;
+  border-width: 46px;
+  border-image-source: url(../assets/ui/stardew/wood_frame.png);
+  border-image-slice: 64;
+  border-image-repeat: stretch;
+  background-color: transparent;
+  background-clip: padding-box;
+  image-rendering: pixelated;
+}
+
+.map-editor-topbar {
+  background-color: #3b2a21;
+  background-image: url(../assets/ui/stardew/wood_strip_tileable_strip.png);
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  image-rendering: pixelated;
+}
+
+.rendering-pixelated {
+  image-rendering: pixelated;
+}
+
+/* Stardew Valley Style Tabs - Reference Image Match */
+.stardew-tab {
+  border: 3px solid #8b6b4a;
+  border-radius: 4px;
+  background-color: #e8d4b0;
+  color: #5a4030;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 0 #6d4c30;
+  cursor: pointer;
+}
+
+.stardew-tab:hover {
+  background-color: #f0dfc0;
+}
+
+.stardew-tab-active {
+  background-color: #c9a66a;
+  border-color: #6d4c30;
+  color: #3b2a21;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.3),
+    0 1px 0 #8b6b4a;
+}
+
+.stardew-tab-inactive {
+  background-color: #e8d4b0;
+}
+
+/* Stardew Valley Style Tool Buttons */
+.stardew-tool-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #8b6b4a;
+  border-radius: 4px;
+  background-color: #e8d4b0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 0 #6d4c30;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.stardew-tool-btn:hover {
+  background-color: #f0dfc0;
+}
+
+.stardew-tool-btn:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.stardew-tool-active {
+  background-color: #c9a66a;
+  border-color: #f0c96a;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.2),
+    0 0 8px rgba(240, 200, 100, 0.5);
+}
+
+/* ========================================
+   STARDEW EDITOR - CSS GRID LAYOUT
+   ======================================== */
+
+.stardew-editor-root {
+  width: 100%;
+  height: 100vh;
+  background-color: #f5e6c8;
+  display: grid;
+  grid-template-columns: 360px 1fr 260px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas:
+    "sidebar-left topbar topbar"
+    "sidebar-left canvas sidebar-right"
+    "sidebar-left quickbar sidebar-right";
+  gap: 10px;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.stardew-sidebar-left {
+  grid-area: sidebar-left;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stardew-hanging-sign {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -30px;
+  z-index: 10;
+}
+
+.stardew-sign-image {
+  width: 290px;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.stardew-sign-board {
+  position: relative;
+  width: 290px;
+  height: 170px;
+  background-image: url(../assets/ui/stardew/hanging_sign.png);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 52px;
+}
+
+.stardew-tile-panel {
+  flex: 1;
+  width: 100%;
+  position: relative;
+  border: 32px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180 fill;
+  border-image-repeat: stretch;
+  background-color: transparent;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.stardew-tile-panel::after {
+  content: "";
+  position: absolute;
+  inset: -32px;
+  border: 32px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180;
+  border-image-repeat: stretch;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.stardew-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.stardew-tile-slot {
+  aspect-ratio: 1;
+  border: 5px solid #4a3020;
+  background-color: #3b2a21;
+  cursor: pointer;
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+.stardew-tile-slot:hover {
+  border-color: #a88b6a;
+}
+
+.stardew-tile-selected {
+  border-color: #ffd93d !important;
+  box-shadow: 0 0 8px rgba(255, 217, 61, 0.6);
+}
+
+.stardew-tile-preview {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.stardew-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.stardew-mode-tabs,
+.stardew-tool-icons {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  background-color: transparent;
+  border: 16px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180 fill;
+  border-image-repeat: stretch;
+  padding: 10px;
+}
+
+.stardew-mode-tabs::after,
+.stardew-tool-icons::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  border: 16px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180;
+  border-image-repeat: stretch;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.stardew-tool-icons {
+  margin-left: auto;
+}
+
+.stardew-mode-tab {
+  padding: 14px 32px;
+  font-family: 'Upheaval Pro', sans-serif;
+  font-size: 16px;
+  color: #5a3a2a;
+  background-color: transparent;
+  border: 16px solid transparent;
+  border-image-source: url(../assets/ui/stardew/tab_normal.png);
+  border-image-slice: 30% 10% 35% 10% fill;
+  border-image-repeat: stretch;
+  border-radius: 0;
+  cursor: pointer;
+  box-shadow: none;
+  position: relative;
+  transition: filter 0.1s, transform 0.1s;
+  image-rendering: pixelated;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stardew-mode-tab:hover {
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.stardew-mode-tab.stardew-tab-active {
+  color: #3b2a21;
+  border-image-source: url(../assets/ui/stardew/tab_active.png);
+  border-image-slice: 25% 8% 30% 8% fill;
+  transform: translateY(2px);
+  filter: brightness(0.95);
+}
+
+.stardew-tool-icon {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e8d4b0;
+  border: 4px solid #8b6b4a;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.4),
+    0 4px 0 #5a3a2a;
+  position: relative;
+  transition: all 0.1s;
+}
+
+.stardew-tool-icon img {
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+  /* Let clicks pass to button */
+}
+
+.stardew-tool-icon:hover {
+  background-color: #f0dfc0;
+  transform: translateY(-1px);
+}
+
+.stardew-tool-icon.stardew-tool-active {
+  background-color: #d4b078;
+  border-color: #6d4c30;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.25);
+  transform: translateY(4px);
+}
+
+.stardew-canvas-area {
+  grid-area: canvas;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+}
+
+.stardew-canvas-frame {
+  position: relative;
+  border: 32px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180 fill;
+  border-image-repeat: stretch;
+  background-color: transparent;
+}
+
+.stardew-canvas-frame::after {
+  content: "";
+  position: absolute;
+  inset: -32px;
+  border: 32px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180;
+  border-image-repeat: stretch;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.stardew-canvas-inner {
+  position: relative;
+}
+
+.stardew-grid {
+  position: absolute;
+  inset: 0;
+}
+
+.stardew-sidebar-right {
+  grid-area: sidebar-right;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 20px;
+}
+
+.stardew-options-panel {
+  position: relative;
+  border: 21px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180 fill;
+  border-image-repeat: stretch;
+  background-color: transparent;
+  padding: 24px;
+}
+
+.stardew-options-panel::after {
+  content: "";
+  position: absolute;
+  inset: -21px;
+  border: 21px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180;
+  border-image-repeat: stretch;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.stardew-option-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-family: 'Upheaval Pro', sans-serif;
+  font-size: 18px;
+  color: #3b2a21;
+}
+
+.stardew-checkbox {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-color: transparent !important;
+  background-image: url(../assets/ui/stardew/uncheck.png);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: none !important;
+  outline: none !important;
+  cursor: pointer;
+  image-rendering: pixelated;
+  transition: transform 0.1s;
+  flex-shrink: 0;
+}
+
+.stardew-checkbox:checked {
+  background-image: url(../assets/ui/stardew/checked.png);
+}
+
+.stardew-checkbox:hover {
+  transform: scale(1.1);
+}
+
+.stardew-checkbox:active {
+  transform: scale(0.95);
+}
+
+.stardew-quickbar-area {
+  grid-area: quickbar;
+  display: flex;
+  justify-content: center;
+}
+
+.stardew-quickbar {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  background-color: transparent;
+  border: 21px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180 fill;
+  border-image-repeat: stretch;
+  padding: 12px;
+}
+
+.stardew-quickbar::after {
+  content: "";
+  position: absolute;
+  inset: -21px;
+  border: 21px solid transparent;
+  border-image-source: url(../assets/ui/stardew/wood_panel.png);
+  border-image-slice: 180;
+  border-image-repeat: stretch;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.stardew-quickbar-slot {
+  width: 65px;
+  height: 65px;
+  background-color: #e8d4b0;
+  border: 4px solid #8b6b4a;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.4),
+    0 4px 0 #5a3a2a;
+  transition: all 0.1s;
+}
+
+.stardew-quickbar-slot:hover {
+  background-color: #f0dfc0;
+  transform: translateY(-1px);
+}
+
+.stardew-quickbar-slot:active {
+  transform: translateY(4px);
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+.stardew-quickbar-slot img {
+  width: 52px;
+  height: 52px;
+  image-rendering: pixelated;
+}
+/* Custom Stardew Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #3b2a21;
+  border: 2px solid #5a4030;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c4a67a;
+  border: 2px solid #5a4030;
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d4b078;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: #3b2a21;
+}
