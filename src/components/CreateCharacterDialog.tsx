@@ -216,25 +216,45 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
         ) : (
             // Preview & Save
             <div className="space-y-4">
-                 <div className="bg-gray-900 border border-gray-700 rounded p-4 flex justify-center min-h-[160px] items-center">
-                    {generatedPreviewUrl ? (
-                         <div className="text-center">
-                            <p className="text-emerald-400 mb-2 font-bold text-sm">Preview Generated Sprite</p>
-                            <img 
-                                src={generatedPreviewUrl}
-                                className="w-24 h-32 mx-auto border border-emerald-500/30 bg-gray-800 object-contain"
-                                style={{ imageRendering: 'pixelated' }}
-                                alt="Generated Sprite"
-                            />
-                             <p className="text-xs text-gray-500 mt-2">Background Removed</p>
+                 <div className="grid grid-cols-2 gap-4">
+                    {/* Generated Result */}
+                    <div className="bg-gray-900 border border-gray-700 rounded p-4 flex flex-col items-center">
+                        <p className="text-emerald-400 mb-2 font-bold text-xs uppercase tracking-wide">Your Result</p>
+                        {generatedPreviewUrl ? (
+                             <>
+                                <img 
+                                    src={generatedPreviewUrl}
+                                    className="w-24 h-32 border border-emerald-500/30 bg-gray-800 object-contain"
+                                    style={{ imageRendering: 'pixelated' }}
+                                    alt="Generated Sprite"
+                                />
+                                 <p className="text-xs text-gray-500 mt-2">Background Removed</p>
+                             </>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-32">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-2"></div>
+                                <p className="text-xs text-gray-400">Loading...</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Standard Reference */}
+                    <div className="bg-gray-900 border border-gray-700 rounded p-4 flex flex-col items-center opacity-70 hover:opacity-100 transition-opacity">
+                        <p className="text-gray-400 mb-2 font-bold text-xs uppercase tracking-wide">Standard Format</p>
+                        <img 
+                            src="/assets/characters/char-f1.png"
+                            className="w-24 h-32 border border-gray-600 bg-gray-800 object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                            alt="Standard Reference"
+                        />
+                        <div className="text-[10px] text-gray-500 mt-2 text-center leading-tight">
+                            <p>Row 1: Front</p>
+                            <p>Row 2: Left</p>
+                            <p>Row 3: Right</p>
+                            <p>Row 4: Back</p>
                         </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center p-4">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mb-2"></div>
-                            <p className="text-xs text-gray-400">Loading preview...</p>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                 </div>
                 
                 {/* ... remaining inputs ... */}
                 <div>
@@ -243,23 +263,39 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder="My Character"
-                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm"
+                        className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-emerald-500 outline-none"
                      />
                 </div>
+
                 {/* ... buttons ... */}
                 <div className="flex gap-2">
                      <button
                         onClick={() => setGeneratedStorageId(null)} // Back to edit
-                        className="flex-1 border border-gray-600 hover:bg-gray-800 text-white py-2 rounded"
+                        className="px-4 border border-gray-600 hover:bg-gray-800 text-white py-2 rounded text-sm"
                      >
                         Back
                      </button>
                      <button
+                        onClick={handleGenerate} // Regenerate
+                        disabled={isGenerating}
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-2 rounded text-sm flex items-center justify-center gap-2"
+                     >
+                        {isGenerating ? (
+                            <span className="animate-spin">⟳</span>
+                        ) : (
+                            <span>⟳ Regenerate</span>
+                        )}
+                     </button>
+                     <button
                         onClick={handleSave}
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-sm"
                      >
                         Save Character
                      </button>
+                </div>
+
+                <div className="text-xs text-gray-500 bg-gray-900/50 p-2 rounded border border-gray-700/50">
+                    <p><strong>Check:</strong> Your sprite should have <strong>4 rows × 3 columns = 12 frames</strong>. Directions: Front, Left, Right, Back. If not, Regenerate.</p>
                 </div>
             </div>
         )}

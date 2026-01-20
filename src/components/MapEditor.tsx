@@ -2386,20 +2386,22 @@ const MapEditor = () => {
   return (
     <div className="w-screen h-screen overflow-hidden bg-[#fdf6d8] flex items-center justify-center font-display">
       <div 
-        className="relative select-none w-full h-full p-6 transition-all duration-300" // Made full width/height with padding
+        className="relative select-none p-4 transition-all duration-300 origin-center"
         style={{
+          transform: 'scale(1.3)', // Scale up entire UI by 30% for thicker borders
           display: 'grid',
           // Flexible columns: Sidebars take content width, Main takes remaining
           gridTemplateColumns: 'min-content 1fr min-content', 
-          // Flexible rows: Header/Footer take content height, Main takes remaining
-          gridTemplateRows: 'auto 1fr auto',
+          gridTemplateRows: 'auto 1fr auto', // Header takes content, Main fills, Footer takes content
           gridTemplateAreas: `
-            "sidebar-left header header"
+            ". header header"
             "sidebar-left main sidebar-right"
             "sidebar-left footer sidebar-right"
           `,
-          gap: '12px', // Kept gap for separation
+          gap: '10px', // Slightly reduced gap for scaled view
           imageRendering: 'pixelated',
+          width: '77%', // 100% / 1.3 to fit within viewport after scaling
+          height: '77%',
         }}
       >
         {/* --------------------------------------------------------------------------
@@ -2407,14 +2409,16 @@ const MapEditor = () => {
             Area: sidebar-left
             Responsive Width: min-content (based on children)
            -------------------------------------------------------------------------- */}
-        <div style={{ gridArea: 'sidebar-left' }} className="relative h-full pt-8 min-w-[160px]">
-            {/* Hanging Sign - Positioned absolutely on top of the frame */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 pointer-events-none" style={{ marginTop: '-8px' }}>
-                 <HangingSign text="TILES" scale={0.9} />
+        <div style={{ gridArea: 'sidebar-left' }} className="relative h-full pt-10 min-w-[260px]">
+            {/* Hanging Sign - Positioned at screen edge */}
+            {/* Hanging Sign - Positioned at screen edge */}
+            <div className="fixed top-0 left-[120px] z-30 pointer-events-none" style={{ transform: 'translateX(-50%)' }}>
+                 <HangingSign scale={0.9} />
             </div>
             
-            <StardewFrame className="w-full h-full flex flex-col pt-8 pb-4 px-2" style={{ borderWidth: '12px' }}>
-               <div className="flex-1 min-h-0 overflow-y-auto pr-1 custom-scrollbar space-y-2">
+            <StardewFrame className="w-full h-full flex flex-col pt-8 pb-3 px-3" >
+               <div className="flex-1 min-h-0 w-full h-full overflow-hidden rounded-sm relative"> {/* overflow-hidden to clip content to frame */}
+                 <div className="absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar px-2 py-1"> {/* Scroll container with padding */}
                   {/* Tileset Selector */}
                   <div className="mb-2">
                     <select
@@ -2438,7 +2442,7 @@ const MapEditor = () => {
                              {stampCaptureMode ? 'Creating...' : 'New Stamp'}
                            </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-1">
+                        <div className="grid grid-cols-3 gap-1">
                          {tilesetStampsForSet.map(stamp => (
                             <button 
                               key={stamp.id} 
@@ -2460,21 +2464,25 @@ const MapEditor = () => {
                              {objectCaptureMode ? 'Creating...' : 'New Object'}
                            </button>
                         </div>
-                         <div className="grid grid-cols-2 gap-2">
+                         <div className="grid grid-cols-3 gap-2">
                             {tilesetObjectsForSet.map(obj => {
                                const preview = getObjectPreviewData(obj);
                                return (
                                  <div key={obj.id} 
                                       onClick={() => selectObjectId(obj.id)}
-                                      className={`aspect-square bg-[#3b2a21] rounded border-2 relative cursor-pointer group ${activeObjectId === obj.id ? 'border-[#ffd93d] shadow-[0_0_8px_#ffd93d]' : 'border-[#5a4030] hover:border-[#8b6b4a]'}`}
+                                      className={`aspect-square bg-[#3b2a21] rounded border-2 relative cursor-pointer group flex items-center justify-center overflow-hidden ${activeObjectId === obj.id ? 'border-[#ffd93d] shadow-[0_0_8px_#ffd93d]' : 'border-[#5a4030] hover:border-[#8b6b4a]'}`}
                                  >
                                      <div 
-                                        className="absolute inset-2 bg-no-repeat bg-center"
+                                        className="bg-no-repeat"
                                         style={{
+                                            width: preview.width,
+                                            height: preview.height,
                                             backgroundImage: `url(${preview.imageUrl})`,
                                             backgroundPosition: preview.backgroundPosition,
                                             backgroundSize: preview.backgroundSize,
-                                            transform: 'scale(0.8)'
+                                            transform: `scale(${Math.min(1, 56 / Math.max(preview.width, preview.height))})`, // Scale to fit 56px box (better visibility)
+                                            transformOrigin: 'center',
+                                            imageRendering: 'pixelated'
                                         }}
                                      />
                                      <span className="absolute bottom-0 w-full text-center text-[8px] bg-black/50 text-white truncate px-0.5">{obj.name}</span>
@@ -2484,7 +2492,7 @@ const MapEditor = () => {
                          </div>
                     </div>
                   ) : (
-                    <div className="grid gap-[1px]" style={{ gridTemplateColumns: `repeat(3, 1fr)` }}>
+                    <div className="grid gap-[3px] auto-rows-auto" style={{ gridTemplateColumns: `repeat(3, 1fr)` }}>
                         {paletteTileIds.map(tileId => {
                            const { sx, sy } = getTilePos(tileId);
                            const isSelected = selectedTileId === tileId;
@@ -2510,6 +2518,7 @@ const MapEditor = () => {
                      </div>
                   )}
                </div>
+               </div>
             </StardewFrame>
         </div>
 
@@ -2518,18 +2527,18 @@ const MapEditor = () => {
             Area: header
             Responsive Height: auto (min 56px)
            -------------------------------------------------------------------------- */}
-        <div style={{ gridArea: 'header' }} className="flex h-14 gap-[12px]"> {/* Fixed height h-14 (56px) often good for headers, but flex helps */}
-             {/* Header Left: Tabs (Fills center) */}
-             <div className="flex-1 h-full"> 
-                 <StardewFrame className="flex items-center px-4 h-full" style={{ borderWidth: '12px' }}>
-                     <div className="flex items-center gap-1 justify-between w-full"> {/* justify-between to spread tabs if widely available */}
+         <div style={{ gridArea: 'header' }} className="flex h-[120px] gap-[10px] justify-end pr-[15%]"> {/* pr-15% shifts it left */}
+             {/* Header Left: Tabs (Fit to content) */}
+             <div className="h-full w-fit"> 
+                 <StardewFrame className="flex items-center px-4 h-full" >
+                     <div className="flex items-center gap-2">
                          {[
                            { label: 'TERRAIN', mode: 'terrain' as EditorMode, category: 'all' as TileCategoryFilter },
                            { label: 'PATHS', mode: 'paths' as EditorMode, category: 'paths' as TileCategoryFilter },
                            { label: 'PROPS', mode: 'prefabs' as EditorMode, category: null },
                            { label: 'BUILDINGS', mode: 'objects' as EditorMode, category: null }
                          ].map((tab) => (
-                            <div key={tab.label} className="relative flex-1 flex justify-center">
+                            <div key={tab.label} className="relative">
                                 <StardewTab
                                   label={tab.label}
                                   isActive={activeMode === tab.mode}
@@ -2546,9 +2555,9 @@ const MapEditor = () => {
              </div>
 
              {/* Header Right: Tools (Matches Sidebar Right width effectively) */}
-             <div className="h-full pl-1 w-[140px]"> {/* Kept 140px min width for tools to ensure they fit */}
-                 <StardewFrame className="flex items-center justify-center px-2 h-full w-full" style={{ borderWidth: '12px' }}>
-                     <div className="flex items-center gap-1.5 justify-around w-full">
+             <div className="h-full pl-1 w-[180px]">
+                 <StardewFrame className="flex items-center justify-center px-3 h-full w-full" >
+                      <div className="flex items-center gap-1.5 justify-center w-full">
                          {[
                           { id: 'brush', icon: '/ai-town/assets/ui/icons/brush.png' },
                           { id: 'eraser', icon: '/ai-town/assets/ui/icons/eraser.png' },
@@ -2563,8 +2572,8 @@ const MapEditor = () => {
                             className={`relative w-8 h-8 flex items-center justify-center transition-all duration-75 rounded-sm ${
                               (tool.id === 'stamp' && activeMode === 'prefabs') ||
                               activeTool === tool.id
-                                ? 'bg-[#e8d4b0] border-2 border-[#ffd93d] shadow-[0_0_8px_rgba(255,217,61,0.5)] scale-110 z-10'
-                                : 'bg-[#8b6b4a] border-2 border-[#5a3a2a] hover:bg-[#d4b078] hover:-translate-y-0.5'
+                                ? 'bg-[#e8d4b0] border-2 border-[#6d4c30] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] scale-100 z-10'  // Active: Inset/Pressed
+                                : 'bg-[#e8d4b0] border-2 border-[#8b6b4a] shadow-[inset_0_-2px_0_rgba(0,0,0,0.2),0_2px_0_rgba(0,0,0,0.2)] hover:bg-[#ffe6b5] hover:-translate-y-0.5' // Inactive: Raised
                             }`}
                             title={tool.id.toUpperCase()}
                           >
@@ -2585,7 +2594,7 @@ const MapEditor = () => {
             Area: main
            -------------------------------------------------------------------------- */}
         <div style={{ gridArea: 'main' }} className="relative flex items-center justify-center min-h-0 min-w-0"> {/* min-h/w-0 prevents grid blowout */}
-            <div className="border-[6px] border-[#6d4c30] bg-[#d4c4a0] shadow-[inset_0_0_20px_rgba(0,0,0,0.2)] rounded overflow-hidden flex ring-4 ring-[#8b6b4a] w-full h-full"> {/* Full size of grid area */}
+            <div className="border-[6px] border-[#6d4c30] bg-[#d4c4a0] shadow-[inset_0_0_20px_rgba(0,0,0,0.2)] rounded overflow-hidden flex ring-4 ring-[#8b6b4a]" style={{ width: '90%', height: '90%', maxWidth: '800px', maxHeight: '600px' }}>
                 {renderCanvas()}
             </div>
         </div>
@@ -2595,9 +2604,9 @@ const MapEditor = () => {
             Area: footer
             Responsive Height: auto
            -------------------------------------------------------------------------- */}
-        <div style={{ gridArea: 'footer' }} className="flex justify-center h-16">
+        <div style={{ gridArea: 'footer' }} className="flex justify-center h-[100px]">
              <div className="w-full max-w-lg h-full"> {/* Allow it to grow max-w-lg */}
-                <StardewFrame className="w-full h-full flex items-center justify-center px-4" style={{ borderWidth: '12px' }}>
+                <StardewFrame className="w-full h-full flex items-center justify-center px-6" >
                      <div className="flex gap-1.5 align-middle">
                         {/* Render Quickbar Slots */}
                         {Array.from({ length: 8 }).map((_, index) => {
@@ -2643,10 +2652,10 @@ const MapEditor = () => {
                                     if(activeMode === 'objects' && objectId) selectObjectId(objectId);
                                     if(activeMode !== 'objects' && tileId !== null) selectTileId(tileId);
                                   }}
-                                  className={`relative w-10 h-10 border-2 rounded-sm active:scale-95 transition-all group overflow-hidden ${
+                                  className={`relative w-10 h-10 flex items-center justify-center transition-all duration-75 rounded-sm overflow-hidden group ${
                                       isActive
-                                      ? 'border-[#ffd93d] bg-[#fdf6d8] shadow-[0_0_8px_#ffd93d] z-10'
-                                      : 'border-[#8b6b4a] bg-[#f9eaca] hover:border-[#a88b6a]'
+                                      ? 'bg-[#e8d4b0] border-2 border-[#6d4c30] shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] scale-105 z-10' // Active: Inset
+                                      : 'bg-[#e8d4b0] border-2 border-[#8b6b4a] shadow-[inset_0_-2px_0_rgba(0,0,0,0.2),0_2px_0_rgba(0,0,0,0.2)] hover:bg-[#ffe6b5] hover:-translate-y-0.5' // Inactive: Raised (Matches Header Tools)
                                   }`}
                               >
                                   <span className={`absolute -top-1 -left-1 w-3 h-3 flex items-center justify-center text-[7px] font-bold border rounded-full z-20 ${
@@ -2673,9 +2682,9 @@ const MapEditor = () => {
             Area: sidebar-right
             Responsive Width: min-content or fixed
            -------------------------------------------------------------------------- */}
-        <div style={{ gridArea: 'sidebar-right', alignSelf: 'end' }} className="flex flex-col justify-end h-full pl-1 w-[140px]"> {/* Adjusted to fixed width to ensure consistency in alignment for tools part */}
+        <div style={{ gridArea: 'sidebar-right', alignSelf: 'end' }} className="flex flex-col justify-end h-full pl-2 w-[180px]">
 
-            <StardewFrame className="p-3 w-full" style={{ borderWidth: '12px' }}>
+            <StardewFrame className="p-4 w-full" >
                 <div className="flex flex-col gap-2">
                    <label className="flex items-center gap-2 cursor-pointer group hover:brightness-110 transition-all">
                       <StardewCheckbox 
@@ -2712,7 +2721,8 @@ const MapEditor = () => {
                         className="opacity-50 scale-90 origin-left"
                       />
                    </label>
-                </div>
+                 </div>
+
             </StardewFrame>
              <div className="mt-1 text-center">
                  <div className="text-[#8b6b4a] text-[8px] font-display font-bold">{MAP_WIDTH}x{MAP_HEIGHT}</div>

@@ -76,7 +76,8 @@ export const generate = action({
         5. Maintain balanced character proportions.
         6. Keep the image sharp and clear, meeting professional game art standards.
         7. Layout: Strict 4 rows (Front, Left, Right, Back) x 3 columns (Stand, Walk, Walk).
-        8. Output: ONLY the sprite sheet image.` }
+        8. Total frames: Exactly 12 frames (4 rows × 3 columns). No more, no less.
+        9. Output: ONLY the sprite sheet image.` }
     ];
 
     // If a reference image is provided, add it to the generation request (Multimodal)

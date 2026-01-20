@@ -12,11 +12,12 @@ const ASSET_PATH = '/ai-town/assets/ui/stardew/wood_frame_9slice.png';
 export const StardewFrame: React.FC<StardewFrameProps> = ({ children, className = '', title, style }) => {
   return (
     <div
-      className={`relative p-4 ${className}`}
+      className={`relative ${className}`}
       style={{
-        border: '18px solid transparent', // Adjust width of the border slice
+        border: '28px solid transparent', // Rendered border thickness
         borderImageSource: `url(${ASSET_PATH})`,
-        borderImageSlice: '33% fill', // 9-slice: 1/3 cut usually works for these 3x3 grids
+        borderImageSlice: '350 fill', // ~350px corners from 2048px source image (17%)
+        borderImageWidth: '28px', // Display width
         borderImageRepeat: 'stretch',
         imageRendering: 'pixelated',
         ...style,
@@ -29,7 +30,7 @@ export const StardewFrame: React.FC<StardewFrameProps> = ({ children, className 
           </span>
         </div>
       )}
-      <div className="relative z-0">
+      <div className="relative z-0 w-full h-full">
         {children}
       </div>
     </div>
