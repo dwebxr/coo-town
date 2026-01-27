@@ -240,11 +240,11 @@ export default function PlayerDetails({
         </div>
       )}
       {!playerConversation && previousConversation && (
-        <div className="flex-1 min-h-0 flex flex-col gap-4">
-          <div className="box flex-grow">
+        <div className="flex-1 min-h-0 flex flex-col gap-2 overflow-hidden">
+          <div className="box shrink-0">
             <h2 className="bg-brown-700 text-lg text-center">Previous conversation</h2>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto">
             <Messages
               worldId={worldId}
               engineId={engineId}

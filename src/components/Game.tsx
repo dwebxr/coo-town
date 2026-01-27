@@ -56,7 +56,7 @@ export default function Game() {
         </Stage>
         
         {/* Right-side overlay for Player Details */}
-        <div className="absolute top-0 right-0 z-10 h-full w-80 lg:w-96 p-4 flex flex-col pointer-events-auto overflow-hidden">
+        <div className="absolute top-0 right-0 z-10 h-full w-80 lg:w-96 p-4 flex flex-col pointer-events-auto overflow-y-auto">
           <PlayerDetails
             worldId={worldId}
             engineId={engineId}

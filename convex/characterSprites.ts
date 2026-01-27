@@ -44,11 +44,24 @@ export const storeImage = action({
   args: { imageUrl: v.string() },
   handler: async (ctx, args) => {
     let blob: Blob;
-    
+
     // Check if base64
     if (args.imageUrl.startsWith('data:')) {
-      const base64Response = await fetch(args.imageUrl);
-      blob = await base64Response.blob();
+      // Parse data URL: data:image/png;base64,<data>
+      const matches = args.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        throw new Error('Invalid base64 data URL format');
+      }
+      const mimeType = matches[1];
+      const base64Data = matches[2];
+
+      // Decode base64 to binary
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      blob = new Blob([bytes], { type: mimeType });
     } else {
       // Fetch from URL
       const response = await fetch(args.imageUrl);

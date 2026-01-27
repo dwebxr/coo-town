@@ -40,14 +40,18 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
   const [displayName, setDisplayName] = useState('');
   
   // Generation state
-  const [step, setStep] = useState<'concept' | 'sprite'>('concept');
+  const [step, setStep] = useState<'concept' | 'sprite' | 'manual'>('concept');
   const [prompt, setPrompt] = useState('');
   const [conceptUrl, setConceptUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedStorageId, setGeneratedStorageId] = useState<string | null>(null);
-  
+
   // Existing upload fallback
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
+
+  // Manual sprite upload
+  const [manualSpriteFile, setManualSpriteFile] = useState<File | null>(null);
+  const [manualSpritePreview, setManualSpritePreview] = useState<string | null>(null);
   
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +73,8 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
       setGeneratedStorageId(null);
       setError(null);
       setIsGenerating(false);
+      setManualSpriteFile(null);
+      setManualSpritePreview(null);
     }
   }, [isOpen]);
 
@@ -76,6 +82,56 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
     const file = event.target.files?.[0] ?? null;
     if (file) {
         setReferenceFile(file);
+    }
+  };
+
+  const handleManualSpriteChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (file) {
+      setManualSpriteFile(file);
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => setManualSpritePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleManualUpload = async () => {
+    if (!manualSpriteFile) {
+      setError('Please select a sprite sheet image (96x128px)');
+      return;
+    }
+    if (!displayName.trim()) {
+      setError('Please enter a character name');
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      // Convert file to base64
+      const base64 = await fileToBase64(manualSpriteFile);
+
+      // Store the image
+      const result = await storeImage({ imageUrl: base64 });
+
+      // Create the sprite
+      await createSprite({
+        storageId: result.storageId,
+        displayName: displayName.trim(),
+        frameWidth: FRAME_WIDTH,
+        frameHeight: FRAME_HEIGHT,
+        framesPerDirection: FRAMES_PER_DIRECTION,
+        directions: DIRECTIONS,
+      });
+
+      onClose();
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message ?? 'Failed to upload sprite');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -212,8 +268,18 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
             <div className="space-y-4">
                 {/* Step Indicator */}
                 <div className="flex gap-2 text-xs uppercase tracking-wider mb-4">
-                    <div className={`flex-1 py-2 text-center border-b-2 ${step === 'concept' ? 'border-emerald-500 text-emerald-400' : 'border-gray-700 text-gray-500'}`}>1. Design</div>
-                    <div className={`flex-1 py-2 text-center border-b-2 ${step === 'sprite' ? 'border-emerald-500 text-emerald-400' : 'border-gray-700 text-gray-500'}`}>2. Sprite Sheet</div>
+                    <button
+                        onClick={() => setStep('concept')}
+                        className={`flex-1 py-2 text-center border-b-2 transition-colors ${step === 'concept' || step === 'sprite' ? 'border-emerald-500 text-emerald-400' : 'border-gray-700 text-gray-500 hover:text-gray-300'}`}
+                    >
+                        AI Generate
+                    </button>
+                    <button
+                        onClick={() => setStep('manual')}
+                        className={`flex-1 py-2 text-center border-b-2 transition-colors ${step === 'manual' ? 'border-amber-500 text-amber-400' : 'border-gray-700 text-gray-500 hover:text-gray-300'}`}
+                    >
+                        Manual Upload
+                    </button>
                 </div>
 
                 {step === 'concept' && (
@@ -238,18 +304,28 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
                              />
                          </div>
 
-                         <button 
-                             onClick={handleGenerateConcept}
-                             disabled={isGenerating}
-                             className={`w-full mt-4 font-bold py-2 px-4 rounded transition-all flex items-center justify-center gap-2 ${
-                                isGenerating ? 'bg-indigo-800 text-indigo-200 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                             }`}
-                         >
-                             {isGenerating ? (
-                                <span className="animate-spin">⟳</span>
-                             ) : null}
-                             {isGenerating ? 'Designing...' : referenceFile ? 'Generate Concept from Image' : 'Generate Concept Art'}
-                         </button>
+                         <div className="flex gap-2 mt-4">
+                             {referenceFile && (
+                                 <button
+                                     onClick={() => setStep('sprite')}
+                                     className="flex-1 font-bold py-2 px-4 rounded transition-all bg-emerald-600 hover:bg-emerald-500 text-white"
+                                 >
+                                     Skip to Sprite Sheet →
+                                 </button>
+                             )}
+                             <button
+                                 onClick={handleGenerateConcept}
+                                 disabled={isGenerating}
+                                 className={`flex-1 font-bold py-2 px-4 rounded transition-all flex items-center justify-center gap-2 ${
+                                    isGenerating ? 'bg-indigo-800 text-indigo-200 cursor-wait' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                                 }`}
+                             >
+                                 {isGenerating ? (
+                                    <span className="animate-spin">⟳</span>
+                                 ) : null}
+                                 {isGenerating ? 'Designing...' : referenceFile ? 'Generate Concept from Image' : 'Generate Concept Art'}
+                             </button>
+                         </div>
                     </div>
                 )}
 
@@ -263,14 +339,14 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
                             )}
                         </div>
                         <div className="flex gap-2">
-                             <button 
+                             <button
                                  onClick={() => setStep('concept')}
                                  disabled={isGenerating}
                                  className="flex-1 px-4 border border-gray-600 hover:bg-gray-800 text-white py-2 rounded text-sm"
                              >
                                 Back
                              </button>
-                             <button 
+                             <button
                                  onClick={handleGenerateSprite}
                                  disabled={isGenerating}
                                  className={`flex-2 w-full font-bold py-2 px-4 rounded transition-all flex items-center justify-center gap-2 ${
@@ -282,6 +358,76 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
                                  ) : null}
                                  {isGenerating ? 'Animating...' : 'Generate Sprite Sheet'}
                              </button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 'manual' && (
+                    <div className="fade-in space-y-4">
+                        <div className="bg-amber-900/20 border border-amber-700/50 rounded p-3 text-xs text-amber-200">
+                            <p className="font-bold mb-1">Manual Upload (No API Required)</p>
+                            <p>Upload your own sprite sheet image. Required format: 96×128px, 4 rows × 3 columns (12 frames).</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Character Name</label>
+                            <input
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                placeholder="My Character"
+                                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-amber-500 outline-none"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm text-gray-400 mb-1">Sprite Sheet Image (96×128px)</label>
+                            <input
+                                type="file"
+                                accept="image/png,image/gif"
+                                className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-amber-800 file:text-white hover:file:bg-amber-700"
+                                onChange={handleManualSpriteChange}
+                            />
+                        </div>
+
+                        {manualSpritePreview && (
+                            <div className="flex justify-center bg-gray-900 border border-gray-700 rounded p-4">
+                                <div className="text-center">
+                                    <img
+                                        src={manualSpritePreview}
+                                        alt="Preview"
+                                        className="w-24 h-32 object-contain bg-gray-800 border border-amber-500/30"
+                                        style={{ imageRendering: 'pixelated' }}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">Preview</p>
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handleManualUpload}
+                            disabled={isGenerating || !manualSpriteFile}
+                            className={`w-full font-bold py-2 px-4 rounded transition-all flex items-center justify-center gap-2 ${
+                                isGenerating ? 'bg-amber-800 text-amber-200 cursor-wait' :
+                                !manualSpriteFile ? 'bg-gray-700 text-gray-500 cursor-not-allowed' :
+                                'bg-amber-600 hover:bg-amber-500 text-white'
+                            }`}
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <span className="animate-spin">⟳</span>
+                                    Uploading...
+                                </>
+                            ) : (
+                                'Save Character'
+                            )}
+                        </button>
+
+                        <div className="text-xs text-gray-500 bg-gray-900/50 p-2 rounded border border-gray-700/50">
+                            <p className="font-bold mb-1">Sprite Format:</p>
+                            <p>Row 1: Front (Walking Down)</p>
+                            <p>Row 2: Left Side</p>
+                            <p>Row 3: Right Side</p>
+                            <p>Row 4: Back (Walking Up)</p>
                         </div>
                     </div>
                 )}
