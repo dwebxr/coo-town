@@ -2,6 +2,48 @@ import { v } from 'convex/values';
 import { mutation, query, action } from './_generated/server';
 import { DEFAULT_NAME } from './constants';
 
+// SSRF protection: validate URLs before fetching
+const isAllowedUrl = (urlString: string): boolean => {
+  try {
+    const url = new URL(urlString);
+
+    // Only allow http/https
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false;
+    }
+
+    const hostname = url.hostname.toLowerCase();
+
+    // Block localhost and loopback
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return false;
+    }
+
+    // Block internal hostnames
+    if (hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+      return false;
+    }
+
+    // Block private IP ranges
+    const ipMatch = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipMatch) {
+      const [, a, b] = ipMatch.map(Number);
+      // 10.x.x.x
+      if (a === 10) return false;
+      // 172.16.x.x - 172.31.x.x
+      if (a === 172 && b >= 16 && b <= 31) return false;
+      // 192.168.x.x
+      if (a === 192 && b === 168) return false;
+      // 169.254.x.x (link-local)
+      if (a === 169 && b === 254) return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const resolveOwnerId = async (ctx: { auth: { getUserIdentity: () => Promise<{ tokenIdentifier?: string } | null> } }) => {
   const identity = await ctx.auth.getUserIdentity();
   return identity?.tokenIdentifier ?? DEFAULT_NAME;
@@ -63,6 +105,10 @@ export const storeImage = action({
       }
       blob = new Blob([bytes], { type: mimeType });
     } else {
+      // Validate URL before fetching (SSRF protection)
+      if (!isAllowedUrl(args.imageUrl)) {
+        throw new Error('Invalid or blocked URL. Only public HTTP/HTTPS URLs are allowed.');
+      }
       // Fetch from URL
       const response = await fetch(args.imageUrl);
       if (!response.ok) {

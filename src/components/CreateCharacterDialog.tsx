@@ -88,10 +88,29 @@ export default function CreateCharacterDialog({ isOpen, onClose }: Props) {
   const handleManualSpriteChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (file) {
-      setManualSpriteFile(file);
-      // Create preview URL
+      setError(null);
+      // Validate image dimensions before accepting
       const reader = new FileReader();
-      reader.onload = (e) => setManualSpritePreview(e.target?.result as string);
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const img = new Image();
+        img.onload = () => {
+          if (img.width !== REQUIRED_WIDTH || img.height !== REQUIRED_HEIGHT) {
+            setError(`Image must be ${REQUIRED_WIDTH}×${REQUIRED_HEIGHT}px. Your image is ${img.width}×${img.height}px.`);
+            setManualSpriteFile(null);
+            setManualSpritePreview(null);
+            return;
+          }
+          setManualSpriteFile(file);
+          setManualSpritePreview(dataUrl);
+        };
+        img.onerror = () => {
+          setError('Failed to load image. Please try a different file.');
+          setManualSpriteFile(null);
+          setManualSpritePreview(null);
+        };
+        img.src = dataUrl;
+      };
       reader.readAsDataURL(file);
     }
   };
