@@ -7,7 +7,6 @@ import { api } from '../../convex/_generated/api';
 import { waitForInput } from '../hooks/sendInput';
 import { useServerGame } from '../hooks/serverGame';
 import { CharacterDefinition, useCharacters } from '../lib/characterRegistry';
-import agentAvatar from '../../assets/ui/agent-avatar.svg';
 
 const modalStyles = {
   overlay: {
@@ -187,11 +186,17 @@ export default function AgentListDialog({ isOpen, onClose, onCreateAgent }: Prop
                   className="flex items-center gap-4 border border-white/10 bg-white/5 px-4 py-3"
                 >
                   <div className="box shrink-0">
-                    <div className="bg-brown-200 p-1">
+                    <div className="bg-brown-200 p-1 overflow-hidden">
                       <img
-                        src={agentAvatar}
+                        src={agent.character.textureUrl}
                         alt={agent.name}
-                        className="h-16 w-16 rounded-sm object-cover object-top"
+                        className="h-16 w-auto rounded-sm"
+                        style={{
+                          objectFit: 'none',
+                          objectPosition: '0 0',
+                          width: '64px',
+                          height: '64px',
+                        }}
                       />
                     </div>
                   </div>
