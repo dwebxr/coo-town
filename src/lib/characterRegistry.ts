@@ -39,7 +39,7 @@ type CharacterRegistryEntry = {
   spriteId: string;
   displayName: string;
   textureUrl: string | null;
-  portraitUrl?: string | null;
+  portraitUrl: string | null;
   frameWidth: number;
   frameHeight: number;
   framesPerDirection: number;

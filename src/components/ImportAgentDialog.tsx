@@ -3,6 +3,7 @@ import ReactModal from 'react-modal';
 import { useAction, useConvex, useQuery } from 'convex/react';
 import { ConvexError } from 'convex/values';
 import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 import { waitForInput } from '../hooks/sendInput';
 import { useCharacters } from '../lib/characterRegistry';
 
@@ -150,7 +151,7 @@ export default function ImportAgentDialog({ isOpen, onClose, onCreateCharacter }
 
       const { inputId } = result;
 
-      await waitForInput(convex, inputId, {
+      await waitForInput(convex, inputId as Id<'inputs'>, {
         timeoutMs: 15000,
         timeoutMessage: 'World is still processing. Try again in a moment.',
       });
