@@ -50,8 +50,8 @@
 ### Step 1: Clone & Install
 
 ```bash
-git clone https://github.com/MAkzent/eliza-town.git
-cd eliza-town
+git clone https://github.com/dwebxr/coo-town.git
+cd coo-town
 npm install
 ```
 
