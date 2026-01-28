@@ -105,24 +105,101 @@ export const sendMessage = action({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: args.message, 
+          text: args.message,
           userId: args.senderId,
           roomId: args.conversationId,
         }),
       }
     );
-    
+
     if (!res.ok) {
          console.error("Eliza Chat Error", await res.text());
-         return null; 
+         return null;
     }
-    
+
     const data = await res.json();
     console.log("Eliza Response:", data);
-    
+
     if (Array.isArray(data) && data.length > 0) {
         return data[0].text;
     }
     return null;
+  },
+});
+
+// Fetch all agents from ElizaOS server
+export const fetchElizaAgents = action({
+  args: {},
+  handler: async () => {
+    try {
+      console.log(`Fetching agents from ${ELIZA_SERVER}...`);
+      const res = await fetch(`${ELIZA_SERVER}/api/agents`);
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`ElizaOS error (${res.status}): ${text}`);
+      }
+
+      const data = await res.json();
+
+      // Handle different response formats
+      if (data.success && data.data?.agents) {
+        return data.data.agents;
+      }
+      if (Array.isArray(data)) {
+        return data;
+      }
+      if (data.agents) {
+        return data.agents;
+      }
+
+      console.error("Unexpected response format:", data);
+      return [];
+    } catch (e: any) {
+      console.error("Fetch Eliza Agents Failed", e);
+      throw new Error("Failed to fetch ElizaOS agents: " + e.message);
+    }
+  },
+});
+
+// Import an existing ElizaOS agent into Coo Town
+export const importElizaAgent = action({
+  args: {
+    worldId: v.id('worlds'),
+    elizaAgentId: v.string(),
+    name: v.string(),
+    character: v.string(),
+    identity: v.string(),
+    plan: v.string(),
+    personality: v.array(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ inputId: Id<"inputs"> | string; elizaAgentId: string }> => {
+    try {
+      console.log(`Importing Eliza Agent [${args.name}] (${args.elizaAgentId}) into Coo Town...`);
+
+      // 1. Create game player using existing API
+      const inputId: any = await ctx.runMutation(api.world.createAgent, {
+        worldId: args.worldId,
+        name: args.name,
+        character: args.character,
+        identity: args.identity,
+        plan: args.plan,
+      });
+
+      // 2. Save Mapping with existing ElizaOS ID
+      await ctx.runMutation(internal.elizaAgent.mutations.saveMapping, {
+        worldId: args.worldId,
+        name: args.name,
+        elizaAgentId: args.elizaAgentId,
+        bio: args.identity,
+        personality: args.personality,
+      });
+
+      console.log(`Eliza Agent imported successfully: ${args.elizaAgentId}`);
+      return { inputId, elizaAgentId: args.elizaAgentId };
+    } catch (e: any) {
+      console.error("Import Eliza Agent Failed", e);
+      throw new Error("Failed to import Eliza Agent: " + e.message);
+    }
   },
 });

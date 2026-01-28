@@ -18,6 +18,7 @@ import CreateCharacterDialog from './components/CreateCharacterDialog.tsx';
 import CreateAgentDialog from './components/CreateAgentDialog.tsx';
 import WorldJoinControls from './components/WorldJoinControls.tsx';
 import AgentListDialog from './components/AgentListDialog.tsx';
+import ImportAgentDialog from './components/ImportAgentDialog.tsx';
 
 const modalStyles = {
   overlay: {
@@ -45,6 +46,7 @@ export default function Home() {
   const [createCharacterOpen, setCreateCharacterOpen] = useState(false);
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [agentListOpen, setAgentListOpen] = useState(false);
+  const [importAgentOpen, setImportAgentOpen] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [showVisualTest, setShowVisualTest] = useState(false);
@@ -83,7 +85,7 @@ export default function Home() {
           <div className="font-body">
             <h1 className="text-center text-6xl font-bold font-display game-title">Help</h1>
             <p>
-              Welcome to Eliza Town! This is a virtual world where AI characters live, chat, and
+              Welcome to Coo Town! This is a virtual world where AI characters live, chat, and
               socialize.
             </p>
             <h2 className="text-4xl mt-4">Controls</h2>
@@ -93,7 +95,7 @@ export default function Home() {
             </p>
             <h2 className="text-4xl mt-4">About</h2>
             <p>
-              Eliza Town is built with <a href="https://convex.dev">Convex</a>,{' '}
+              Coo Town is built with <a href="https://convex.dev">Convex</a>,{' '}
               <a href="https://pixijs.com/">PixiJS</a>, and{' '}
               <a href="https://react.dev/">React</a>. The interactions and conversations are driven
               by LLMs.
@@ -121,12 +123,20 @@ export default function Home() {
           setCreateAgentOpen(true);
         }}
       />
+      <ImportAgentDialog
+        isOpen={importAgentOpen}
+        onClose={() => setImportAgentOpen(false)}
+        onCreateCharacter={() => {
+          setImportAgentOpen(false);
+          setCreateCharacterOpen(true);
+        }}
+      />
 
       {!gameStarted ? (
         // LANDING PAGE STATE
         <div className="w-full h-screen flex flex-col items-center justify-center relative z-10">
           <h1 className="text-6xl sm:text-9xl font-bold font-display game-title mb-8 tracking-wider text-center">
-            ELIZA TOWN
+            COO TOWN
           </h1>
           
           <button
@@ -181,6 +191,13 @@ export default function Home() {
               title="Manage your custom agents"
             >
               Agents
+            </Button>
+            <Button
+              imgUrl={agentsImg}
+              onClick={() => setImportAgentOpen(true)}
+              title="Import agents from ElizaOS server"
+            >
+              Import
             </Button>
             <Button imgUrl={closeImg} onClick={() => setGameStarted(false)}>
               Exit
