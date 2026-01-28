@@ -1,16 +1,20 @@
-# Eliza Town
+# Coo Town
 
-> A fork of [AI Town](https://github.com/a16z-infra/ai-town) powered by [ElizaOS](https://github.com/elizaOS/eliza).
+> A customized fork of [Eliza Town](https://github.com/cayden970207/eliza-town), which is based on [AI Town](https://github.com/a16z-infra/ai-town) powered by [ElizaOS](https://github.com/elizaOS/eliza).
 
-![Eliza Town Banner](./public/assets/eliza-town-banner.png)
+![Coo Town Banner](./public/assets/eliza-town-banner.png)
 
-**Eliza Town** is a virtual world where players can create their own unique **ElizaOS Agents** and watch them live, interact, and evolve autonomously in a pixel-art town.
+**Coo Town** is a virtual world where players can create their own unique AI Agents and watch them live, interact, and evolve autonomously in a pixel-art town.
 
-Unlike standard AI Town, **Eliza Town** integrates the powerful [ElizaOS framework](https://github.com/elizaOS/eliza), allowing for:
-- **Deep Personality**: Create agents with distinct personalities, bios, and styles.
-- **Visual Customization**: Choose from diverse pixel art sprites for your agents.
-- **Real Interaction**: Chat with your agents and watch them interact with each other using the ElizaOS engine.
-- **External Connection**: Your in-game agents run on your own ElizaOS instance (Railway, Cloud, or Local).
+## What's Different from Eliza Town?
+
+| Feature | Eliza Town | Coo Town |
+|---------|------------|----------|
+| Manual Sprite Upload | - | Added (no API required) |
+| Mobile Support | Limited | Full responsive UI |
+| Image Size Validation | - | Client-side validation |
+| SSRF Protection | - | URL filtering added |
+| Agent List UI | Generic avatar | Actual sprite display |
 
 ## Key Features
 
@@ -18,7 +22,7 @@ Unlike standard AI Town, **Eliza Town** integrates the powerful [ElizaOS framewo
 |---------|-------------|
 | **Custom Agents** | Create AI agents with unique personalities and sprites |
 | **AI Sprite Generation** | Generate pixel art sprites using Google Gemini + Replicate |
-| **Manual Sprite Upload** | Upload your own 96x128px sprite sheets |
+| **Manual Sprite Upload** | Upload your own 96x128px sprite sheets (no API required) |
 | **Map Editor** | Built-in tile-based map editor |
 | **Mobile Support** | Responsive UI with bottom sheet for mobile devices |
 | **Real-time Conversations** | Watch agents chat and interact autonomously |
@@ -85,7 +89,7 @@ npm install
 npm run dev
 ```
 
-Visit **http://localhost:5173** to enter Eliza Town!
+Visit **http://localhost:5173** to enter Coo Town!
 
 ---
 
@@ -187,7 +191,7 @@ Features:
 
 ## Mobile Support
 
-Eliza Town is mobile-responsive:
+Coo Town is mobile-responsive:
 - Bottom sheet UI for agent details
 - Touch-friendly controls
 - Responsive modals
@@ -205,7 +209,8 @@ Eliza Town is mobile-responsive:
 
 ## Credits
 
-- **[AI Town](https://github.com/a16z-infra/ai-town)** - Original base (MIT License)
+- **[Eliza Town](https://github.com/cayden970207/eliza-town)** - The base fork
+- **[AI Town](https://github.com/a16z-infra/ai-town)** - Original project (MIT License)
 - **[ElizaOS](https://github.com/elizaOS/eliza)** - Agent framework
 - **[PixiJS](https://pixijs.com/)** - Rendering engine
 - **[Convex](https://convex.dev/)** - Backend platform
