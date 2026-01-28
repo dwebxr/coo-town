@@ -219,6 +219,17 @@ body {
   transform: none;
 }
 
+/* Mobile-responsive modals */
+@media (max-width: 768px) {
+  .ReactModal__Content {
+    max-width: 95% !important;
+    width: 95% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    padding: 16px !important;
+  }
+}
+
 p[contenteditable='true']:empty::before {
   content: attr(placeholder);
   color: #aaa;
